@@ -48,8 +48,8 @@ export async function POST(request: NextRequest) {
         body: {
           priceId: price_id,
           customerEmail: user.email || "",
-            successUrl: `https://www.hackerscope.ai/dashboard`,
-            cancelUrl: `https://www.hackerscope.ai/pricing`, // Changed to localhost for local dev
+            successUrl: `${request.nextUrl.origin}/dashboard`,
+            cancelUrl: `${request.nextUrl.origin}/pricing`,
         },
       },
     );
