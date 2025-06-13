@@ -1,0 +1,27 @@
+# Supabase functions should not be deployed to Vercel
+supabase/functions/**
+supabase/functions/
+supabase/functions/*/node_modules
+supabase/functions/*/.next
+supabase/functions/*/dist
+
+# Additional exclusions for build optimization
+supabase/migrations/
+
+# Supabase config files
+supabase/config.toml
+
+# Build artifacts
+.next/
+node_modules/
+
+# Tempo storyboards
+**/tempobook/dynamic/
+**/tempobook/storyboards/
+
+# Environment files
+.env*.local
+.env
+
+# Cache directories
+cache/
