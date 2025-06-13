@@ -189,7 +189,7 @@ export function FreeIdeaDisplay({
             "Content-Type": "application/json",
           },
           body: JSON.stringify({
-            price_id: "price_1RVvq8CBtpFxI513YuDjlhD4",
+            price_id: "price_1RXouZCBtpFxI513cokQTW0v",
           }),
         });
 
