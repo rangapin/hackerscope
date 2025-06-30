@@ -291,7 +291,7 @@ export default function ProfileModal({
                             Plan Cost
                           </span>
                           <span className="text-base md:text-sm text-textColor-DEFAULT md:text-right">
-                            ${(subscription.amount / 100).toFixed(2)}/
+                            €{(subscription.amount / 100).toFixed(2)}/
                             {subscription.interval}
                           </span>
                         </div>
@@ -374,78 +374,9 @@ export default function ProfileModal({
                     )}
                     {!isSubscribed && (
                       <div className="flex items-center justify-center h-full">
-                        <button
-                          onClick={() => {
-                            // Use the same upgrade logic as dashboard navbar
-                            if (!user) return;
-
-                            const handleUpgrade = async () => {
-                              try {
-                                // Get the first available plan (premium plan)
-                                const { data: plans, error: plansError } =
-                                  await supabase.functions.invoke(
-                                    "supabase-functions-get-plans",
-                                  );
-
-                                if (
-                                  plansError ||
-                                  !plans ||
-                                  plans.length === 0
-                                ) {
-                                  console.error(
-                                    "Error fetching plans:",
-                                    plansError,
-                                  );
-                                  return;
-                                }
-
-                                // Find the premium plan (assuming it's not the free one)
-                                const premiumPlan =
-                                  plans.find((plan: any) => plan.amount > 0) ||
-                                  plans[0];
-
-                                const response = await fetch(
-                                  "/api/billing/create-checkout",
-                                  {
-                                    method: "POST",
-                                    headers: {
-                                      "Content-Type": "application/json",
-                                    },
-                                    body: JSON.stringify({
-                                      price_id: premiumPlan.id,
-                                    }),
-                                  },
-                                );
-
-                                const data = await response.json();
-
-                                if (!response.ok) {
-                                  throw new Error(
-                                    data.error ||
-                                      "Failed to create checkout session",
-                                  );
-                                }
-
-                                // Redirect to Stripe checkout
-                                if (data?.url) {
-                                  window.location.href = data.url;
-                                } else {
-                                  throw new Error("No checkout URL returned");
-                                }
-                              } catch (error) {
-                                console.error(
-                                  "Error creating checkout session:",
-                                  error,
-                                );
-                              }
-                            };
-
-                            handleUpgrade();
-                          }}
-                          className="text-white bg-black rounded-xl px-6 py-4 md:py-3 text-base md:text-sm font-normal transition-none hover:bg-gray-800"
-                        >
-                          Upgrade to Premium
-                        </button>
+                        <p className="text-base md:text-sm text-muted-foreground text-center">
+                          Use the "Upgrade to Premium" button in the top navigation to upgrade your account
+                        </p>
                       </div>
                     )}
                   </div>
