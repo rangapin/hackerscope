@@ -49,7 +49,7 @@ export async function POST(request: NextRequest) {
           priceId: price_id,
           customerEmail: user.email || "",
             successUrl: `${request.nextUrl.origin}/dashboard`,
-            cancelUrl: `${request.nextUrl.origin}/pricing`,
+            cancelUrl: `${request.nextUrl.origin}/dashboard`,
         },
       },
     );

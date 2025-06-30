@@ -396,7 +396,6 @@ export default function ProfileModal({
                                     "Error fetching plans:",
                                     plansError,
                                   );
-                                  window.location.href = "/pricing";
                                   return;
                                 }
 
@@ -438,7 +437,6 @@ export default function ProfileModal({
                                   "Error creating checkout session:",
                                   error,
                                 );
-                                window.location.href = "/pricing";
                               }
                             };
 
