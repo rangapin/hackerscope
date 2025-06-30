@@ -250,8 +250,7 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
       });
 
       // Add a small delay to ensure the idea is fully saved
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     } catch (error) {
       console.error("Error generating idea:", error);
       toast({
@@ -264,16 +263,18 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
       return;
     }
 
-    // Redirect to library with a cache-busting parameter to force refresh
+    // Redirect to library and force a complete refresh
     setIsGenerating(false);
     setShowFullScreenLoading(false);
-    
-    // Use replace to avoid back button issues and add timestamp to force refresh
+
+    // Use router.push with cache busting and then force refresh
     const timestamp = Date.now();
-    router.replace(`/library?refresh=${timestamp}`);
-    
-    // Also trigger a hard refresh of the router cache
-    router.refresh();
+    router.push(`/library?refresh=${timestamp}`);
+
+    // Small delay then force a complete page refresh to ensure server components reload
+    setTimeout(() => {
+      window.location.href = `/library?t=${timestamp}`;
+    }, 100);
   };
 
   const handleLike = () => {

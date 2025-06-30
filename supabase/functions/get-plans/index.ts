@@ -64,7 +64,7 @@ Deno.serve(async (req) => {
       {
         id: stripePriceId,
         name: "Premium",
-        amount: 500, // €5.00 in cents
+        amount: 900, // €9.00 in cents
         currency: "eur",
         interval: "month",
         features: [
