@@ -317,7 +317,7 @@ export function FreeIdeaDisplay({
           <CardTitle>Your Free Idea</CardTitle>
           <CardDescription>
             {hasGeneratedIdea
-              ? "You have already used your free idea. Upgrade to generate more ideas (5 EUR/month)."
+              ? "You have already used your free idea. Upgrade to generate more ideas (9 EUR/month)."
               : "Generate your complimentary startup idea to get started"}
           </CardDescription>
         </CardHeader>
