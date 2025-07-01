@@ -268,16 +268,10 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
     setShowFullScreenLoading(false);
 
     // Add a delay to ensure database transaction is fully committed
-    await new Promise((resolve) => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Use Next.js router for proper navigation and cache invalidation
-    router.push("/library");
-    router.refresh();
-
-    // Additional cache busting as fallback
-    setTimeout(() => {
-      router.refresh();
-    }, 500);
+    // Force a hard navigation to ensure server-side data is fresh
+    window.location.href = "/library";
   };
 
   const handleLike = () => {
