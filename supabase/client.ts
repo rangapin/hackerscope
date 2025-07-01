@@ -1,7 +1,20 @@
 import { createBrowserClient } from "@supabase/ssr";
+import type { SupabaseClient } from "@supabase/supabase-js";
+
+// Singleton instance to ensure we use the same client across the app
+let supabaseClient: SupabaseClient | null = null;
 
 export const createClient = () => {
-  console.log("🔧 [CLIENT DEBUG] Creating browser client with:", {
+  // Return existing client if already created
+  if (supabaseClient) {
+    console.log("🔄 [CLIENT DEBUG] Returning existing browser client:", {
+      clientExists: !!supabaseClient,
+      timestamp: new Date().toISOString(),
+    });
+    return supabaseClient;
+  }
+
+  console.log("🔧 [CLIENT DEBUG] Creating new browser client with:", {
     url: process.env.NEXT_PUBLIC_SUPABASE_URL ? "[PRESENT]" : "[MISSING]",
     anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
       ? "[PRESENT]"
@@ -9,7 +22,7 @@ export const createClient = () => {
     timestamp: new Date().toISOString(),
   });
 
-  // Debug: Log the actual environment variable values (first 10 chars only for security)
+  // Debug: Log the actual environment variable values (first 30 chars for URL, 20 for key)
   console.log("🔍 [API KEY DEBUG] Browser client environment variables:", {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL
       ? `${process.env.NEXT_PUBLIC_SUPABASE_URL.substring(0, 30)}...`
@@ -38,7 +51,8 @@ export const createClient = () => {
     );
   }
 
-  const client = createBrowserClient(
+  // Create the client with enhanced configuration
+  supabaseClient = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
@@ -56,13 +70,26 @@ export const createClient = () => {
       db: {
         schema: "public",
       },
+      global: {
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+        },
+      },
     },
   );
 
   console.log("✅ [CLIENT DEBUG] Browser client created successfully:", {
-    clientExists: !!client,
+    clientExists: !!supabaseClient,
+    hasApiKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     timestamp: new Date().toISOString(),
   });
 
-  return client;
+  return supabaseClient;
+};
+
+// Function to reset the client (useful for testing or when auth state changes)
+export const resetClient = () => {
+  console.log("🔄 [CLIENT DEBUG] Resetting browser client");
+  supabaseClient = null;
 };

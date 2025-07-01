@@ -10,7 +10,7 @@ export const createClient = async () => {
     timestamp: new Date().toISOString(),
   });
 
-  // Debug: Log the actual environment variable values (first 10 chars only for security)
+  // Debug: Log the actual environment variable values (first 30 chars for URL, 20 for key)
   console.log("🔍 [API KEY DEBUG] Server client environment variables:", {
     NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL
       ? `${process.env.NEXT_PUBLIC_SUPABASE_URL.substring(0, 30)}...`
@@ -53,7 +53,7 @@ export const createClient = async () => {
               value,
             }));
           } catch (error) {
-            // If cookies() is called in an environment where it's not allowed
+            console.warn("[SERVER DEBUG] Cookie access error:", error);
             return [];
           }
         },
@@ -63,8 +63,7 @@ export const createClient = async () => {
               cookieStore.set(name, value, options);
             });
           } catch (error) {
-            // If cookies() is called in an environment where it's not allowed
-            // Silently handle the error
+            console.warn("[SERVER DEBUG] Cookie set error:", error);
           }
         },
       },
@@ -73,11 +72,18 @@ export const createClient = async () => {
         autoRefreshToken: true,
         detectSessionInUrl: true,
       },
+      global: {
+        headers: {
+          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!}`,
+        },
+      },
     },
   );
 
   console.log("✅ [SERVER DEBUG] Server client created successfully:", {
     clientExists: !!client,
+    hasApiKey: !!process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     timestamp: new Date().toISOString(),
   });
 

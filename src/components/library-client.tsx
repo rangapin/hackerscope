@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../supabase/client";
 import {
@@ -91,13 +91,19 @@ export function LibraryClient({
   const [savedIdeas, setSavedIdeas] = useState<SavedIdea[]>(initialSavedIdeas);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const router = useRouter();
-  const supabase = createClient();
 
-  // Debug: Check if the Supabase client was created with proper API key
-  console.log("🔍 [API KEY DEBUG] Supabase client in LibraryClient:", {
-    clientExists: !!supabase,
-    timestamp: new Date().toISOString(),
-  });
+  // Use a single Supabase client instance throughout the component
+  const supabase = useMemo(() => {
+    const client = createClient();
+    console.log(
+      "🔍 [API KEY DEBUG] Supabase client created in LibraryClient:",
+      {
+        clientExists: !!client,
+        timestamp: new Date().toISOString(),
+      },
+    );
+    return client;
+  }, []);
 
   const handleViewDetails = (idea: SavedIdea) => {
     setSelectedIdea(idea);

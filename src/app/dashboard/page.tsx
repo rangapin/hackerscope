@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import DashboardNavbar from "@/components/dashboard-navbar";
 import IdeaGenerator from "@/components/IdeaGenerator";
@@ -19,18 +19,13 @@ import { FreeIdeaDisplay } from "@/components/free-idea-display";
 import type { User } from "@supabase/supabase-js";
 
 // Function to check if user has generated their free idea
-async function checkUserHasFreeIdea(userEmail: string) {
-  const supabase = createClient();
-
-  // Debug: Check if the Supabase client was created with proper API key
-  console.log("🔍 [API KEY DEBUG] Supabase client in Dashboard component:", {
-    clientExists: !!supabase,
-    timestamp: new Date().toISOString(),
-  });
+async function checkUserHasFreeIdea(userEmail: string, supabaseClient?: any) {
+  const supabase = supabaseClient || createClient();
 
   // Debug: Check if the Supabase client was created with proper API key
   console.log("🔍 [API KEY DEBUG] Supabase client in checkUserHasFreeIdea:", {
     clientExists: !!supabase,
+    clientProvided: !!supabaseClient,
     timestamp: new Date().toISOString(),
   });
 
@@ -103,14 +98,16 @@ interface GeneratedIdea {
 
 async function getSavedIdeasWithDetails(
   userEmail: string,
+  supabaseClient?: any,
 ): Promise<(SavedIdea & { generated_idea?: GeneratedIdea })[]> {
-  const supabase = createClient();
+  const supabase = supabaseClient || createClient();
 
   // Debug: Check if the Supabase client was created with proper API key
   console.log(
     "🔍 [API KEY DEBUG] Supabase client in getSavedIdeasWithDetails (Dashboard):",
     {
       clientExists: !!supabase,
+      clientProvided: !!supabaseClient,
       timestamp: new Date().toISOString(),
     },
   );
@@ -199,7 +196,16 @@ export default function Dashboard({
   const [hasGeneratedFreeIdea, setHasGeneratedFreeIdea] = useState(false);
   const [loading, setLoading] = useState(true);
   const router = useRouter();
-  const supabase = createClient();
+
+  // Use a single Supabase client instance throughout the component
+  const supabase = useMemo(() => {
+    const client = createClient();
+    console.log("🔍 [API KEY DEBUG] Supabase client created in Dashboard:", {
+      clientExists: !!client,
+      timestamp: new Date().toISOString(),
+    });
+    return client;
+  }, []);
 
   // Function to refresh subscription status
   const refreshSubscriptionStatus = async (userId: string) => {
