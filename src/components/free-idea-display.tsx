@@ -23,7 +23,6 @@ import {
 } from "@/components/ui/dialog";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { createClient } from "../../supabase/client";
 
 // Full-screen loading overlay component
 function FullScreenLoadingOverlay({ isVisible }: { isVisible: boolean }) {
@@ -123,102 +122,39 @@ interface GeneratedIdea {
 interface FreeIdeaDisplayProps {
   userEmail: string;
   hasGeneratedIdea?: boolean;
+  freeIdea?: any | null;
 }
 
 export function FreeIdeaDisplay({
   userEmail,
   hasGeneratedIdea = false,
+  freeIdea: initialFreeIdea = null,
 }: FreeIdeaDisplayProps) {
   const router = useRouter();
   const [freeIdea, setFreeIdea] = useState<GeneratedIdea | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showFullDescription, setShowFullDescription] = useState(false);
   const [showFullScreenLoading, setShowFullScreenLoading] = useState(false);
-  const [supabase] = useState(() => createClient());
 
-  // Check if user already has a free idea stored with race condition protection
-  const checkExistingFreeIdea = async (forceLoad = false) => {
-    // Skip background fetching if idea generation just completed, UNLESS this is a forced load after generation
-    if (!forceLoad && shouldDisableBackgroundFetching()) {
-      console.log(
-        "🚫 [BACKGROUND FETCH DISABLED] FreeIdeaDisplay - Skipping checkExistingFreeIdea - idea generation in progress or recently completed",
-      );
-      return;
-    }
-
-    try {
-      const { data, error } = await supabase
-        .from("generated_ideas")
-        .select("*")
-        .eq("email", userEmail)
-        .order("created_at", { ascending: false })
-        .limit(1)
-        .single();
-
-      if (error && error.code !== "PGRST116") {
-        // PGRST116 is "no rows returned", which is expected for new users
-        console.error(
-          "❌ [RACE CONDITION FIX] Error in checkExistingFreeIdea:",
-          {
-            code: error.code,
-            message: error.message,
-            userEmail,
-            timestamp: new Date().toISOString(),
-          },
-        );
-
-        // Don't set error state if we already have a free idea displayed
-        if (!freeIdea) {
-          setError("Failed to load your free idea");
-        } else {
-          console.warn(
-            "⚠️ [RACE CONDITION FIX] Query failed but preserving existing free idea display",
-          );
-        }
-        return;
-      }
-
-      if (data) {
-        // Convert database format to component format
-        const ideaData: GeneratedIdea = {
-          id: data.id,
-          title: data.title,
-          problem: "Identified market opportunity", // We don't store problem separately in DB
-          solution: data.description,
-          market_size: data.market_size || "Market size analysis pending",
-          target_audience:
-            data.target_audience || "Target audience analysis pending",
-          revenue_streams: data.revenue_streams || [],
-          validation_data: data.validation_data || {
-            market_trends: [],
-            competitor_analysis: "Competitor analysis pending",
-            demand_indicators: [],
-          },
-        };
-        setFreeIdea(ideaData);
-        // Clear any previous error if we successfully loaded data
-        setError(null);
-      }
-    } catch (err) {
-      console.error(
-        "❌ [RACE CONDITION FIX] Exception in checkExistingFreeIdea:",
-        err,
-      );
-
-      // Don't set error state if we already have a free idea displayed
-      if (!freeIdea) {
-        setError("Failed to load your free idea");
-      } else {
-        console.warn(
-          "⚠️ [RACE CONDITION FIX] Exception occurred but preserving existing free idea display",
-        );
-      }
-    } finally {
-      setIsLoading(false);
-    }
+  // Convert server-side data to component format
+  const convertToComponentFormat = (data: any): GeneratedIdea => {
+    return {
+      id: data.id,
+      title: data.title,
+      problem: "Identified market opportunity", // We don't store problem separately in DB
+      solution: data.description,
+      market_size: data.market_size || "Market size analysis pending",
+      target_audience:
+        data.target_audience || "Target audience analysis pending",
+      revenue_streams: data.revenue_streams || [],
+      validation_data: data.validation_data || {
+        market_trends: [],
+        competitor_analysis: "Competitor analysis pending",
+        demand_indicators: [],
+      },
+    };
   };
 
   // Generate a new free idea or redirect to checkout
@@ -288,8 +224,11 @@ export function FreeIdeaDisplay({
       // Hide loading overlay with a slight delay for smooth transition
       setTimeout(() => {
         setShowFullScreenLoading(false);
-        // Refresh the page to show the generated idea immediately
-        window.location.reload();
+        console.log(
+          "🎉 [DEBUG] Idea generation completed, redirecting to library",
+        );
+        // Redirect to library to show the generated idea immediately
+        window.location.href = "/library";
       }, 500);
     } catch (err) {
       console.error("Error generating free idea:", err);
@@ -301,19 +240,38 @@ export function FreeIdeaDisplay({
     }
   };
 
+  // Initialize component with server-side data
   useEffect(() => {
-    checkExistingFreeIdea();
-  }, [userEmail]);
+    console.log("🔍 [SERVER-SIDE] FreeIdeaDisplay initializing with props:", {
+      userEmail,
+      hasGeneratedIdea,
+      hasFreeIdea: !!initialFreeIdea,
+      freeIdeaId: initialFreeIdea?.id,
+      timestamp: new Date().toISOString(),
+    });
 
-  // Listen for idea generation completion to refresh the display
+    if (initialFreeIdea) {
+      const convertedIdea = convertToComponentFormat(initialFreeIdea);
+      setFreeIdea(convertedIdea);
+      console.log("✅ [SERVER-SIDE] Set free idea from server-side data:", {
+        ideaId: convertedIdea.id,
+        ideaTitle: convertedIdea.title,
+      });
+    } else {
+      setFreeIdea(null);
+      console.log("ℹ️ [SERVER-SIDE] No free idea data from server");
+    }
+  }, [initialFreeIdea, userEmail]);
+
+  // Listen for idea generation completion to refresh the page
   useEffect(() => {
-    const handleIdeaGenerated = async () => {
+    const handleIdeaGenerated = () => {
       console.log(
-        "🎉 [IDEA GENERATED] FreeIdeaDisplay - Refreshing idea display after generation",
+        "🎉 [IDEA GENERATED] FreeIdeaDisplay - Redirecting to refresh server-side data",
       );
-      // Small delay to ensure database has been updated
-      setTimeout(async () => {
-        await checkExistingFreeIdea(true);
+      // Redirect to dashboard to get fresh server-side data
+      setTimeout(() => {
+        window.location.href = "/dashboard";
       }, 500);
     };
 
@@ -321,24 +279,6 @@ export function FreeIdeaDisplay({
     return () =>
       window.removeEventListener("ideaGenerated", handleIdeaGenerated);
   }, []);
-
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Your Free Idea</CardTitle>
-          <CardDescription>
-            Loading your complimentary startup idea...
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <Loader2 className="w-8 h-8 animate-spin text-muted-foreground" />
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
 
   if (error && !freeIdea) {
     return (
@@ -391,7 +331,32 @@ export function FreeIdeaDisplay({
             className="p-4 rounded-lg flex items-center justify-center"
             style={{ backgroundColor: "#FEFDFB" }}
           >
-            {!hasGeneratedIdea ? (
+            {/* Debug info */}
+            {process.env.NODE_ENV === "development" && (
+              <div className="text-xs text-gray-500 mb-2">
+                Debug: hasGeneratedIdea={String(hasGeneratedIdea)}, freeIdea=
+                {freeIdea ? "exists" : "null"}, serverData=
+                {initialFreeIdea ? "provided" : "null"}
+              </div>
+            )}
+
+            {freeIdea ? (
+              /* Show the generated idea */
+              <div className="text-center w-full">
+                <span className="text-sm font-medium text-gray-700 block mb-2">
+                  {freeIdea.title}
+                </span>
+                <Button
+                  onClick={() => setShowDetailsModal(true)}
+                  variant="outline"
+                  size="sm"
+                  className="text-xs"
+                >
+                  View Details
+                </Button>
+              </div>
+            ) : !hasGeneratedIdea ? (
+              /* Show generation button for users who haven't generated */
               <Button
                 onClick={generateFreeIdea}
                 disabled={isGenerating}
@@ -403,22 +368,172 @@ export function FreeIdeaDisplay({
                     <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                     Generating...
                   </>
-                ) : hasGeneratedIdea ? (
-                  "Generate more ideas"
                 ) : (
                   "Generate your Free idea"
                 )}
               </Button>
             ) : (
-              freeIdea && (
-                <span className="text-sm font-medium text-gray-700 text-center w-full">
-                  {freeIdea.title}
-                </span>
-              )
+              /* Show upgrade button for users who have generated but idea not found */
+              <div className="text-center w-full">
+                <p className="text-sm text-gray-600 mb-2">
+                  You've used your free idea
+                </p>
+                <Button
+                  onClick={generateFreeIdea}
+                  size="sm"
+                  className="bg-orange-600 hover:bg-orange-700 text-white"
+                >
+                  Upgrade for More Ideas
+                </Button>
+              </div>
             )}
           </div>
         </CardContent>
       </Card>
+
+      {/* Modal for idea details */}
+      <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
+        <DialogContent className="max-w-4xl max-h-[80vh] overflow-y-auto">
+          <DialogHeader>
+            <DialogTitle className="text-xl font-bold">
+              {freeIdea?.title}
+            </DialogTitle>
+            <DialogDescription className="text-sm text-gray-600">
+              Your generated startup idea details
+            </DialogDescription>
+          </DialogHeader>
+
+          {freeIdea && (
+            <div className="space-y-6">
+              {/* Problem & Solution */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Problem</h3>
+                  <p className="text-gray-700 text-sm">{freeIdea.problem}</p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">Solution</h3>
+                  <div className="text-gray-700 text-sm">
+                    {showFullDescription ? (
+                      <p>{freeIdea.solution}</p>
+                    ) : (
+                      <p>
+                        {freeIdea.solution.length > 200
+                          ? `${freeIdea.solution.substring(0, 200)}...`
+                          : freeIdea.solution}
+                      </p>
+                    )}
+                    {freeIdea.solution.length > 200 && (
+                      <button
+                        onClick={() =>
+                          setShowFullDescription(!showFullDescription)
+                        }
+                        className="text-blue-600 hover:text-blue-800 text-xs mt-1 underline"
+                      >
+                        {showFullDescription ? "Show less" : "Show more"}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Market & Audience */}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    Market Size
+                  </h3>
+                  <p className="text-gray-700 text-sm">
+                    {freeIdea.market_size}
+                  </p>
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900 mb-2">
+                    Target Audience
+                  </h3>
+                  <p className="text-gray-700 text-sm">
+                    {freeIdea.target_audience}
+                  </p>
+                </div>
+              </div>
+
+              {/* Revenue Streams */}
+              <div>
+                <h3 className="font-semibold text-gray-900 mb-2">
+                  Revenue Streams
+                </h3>
+                <div className="flex flex-wrap gap-2">
+                  {freeIdea.revenue_streams.map(
+                    (stream: string, index: number) => (
+                      <Badge
+                        key={index}
+                        variant="secondary"
+                        className="text-xs"
+                      >
+                        {stream}
+                      </Badge>
+                    ),
+                  )}
+                </div>
+              </div>
+
+              {/* Validation Data */}
+              <div className="space-y-4">
+                <h3 className="font-semibold text-gray-900">
+                  Market Validation
+                </h3>
+
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-1 text-sm">
+                    Market Trends
+                  </h4>
+                  <div className="flex flex-wrap gap-1">
+                    {freeIdea.validation_data.market_trends.map(
+                      (trend: string, index: number) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="text-xs"
+                        >
+                          {trend}
+                        </Badge>
+                      ),
+                    )}
+                  </div>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-1 text-sm">
+                    Competitor Analysis
+                  </h4>
+                  <p className="text-gray-700 text-sm">
+                    {freeIdea.validation_data.competitor_analysis}
+                  </p>
+                </div>
+
+                <div>
+                  <h4 className="font-medium text-gray-800 mb-1 text-sm">
+                    Demand Indicators
+                  </h4>
+                  <div className="flex flex-wrap gap-1">
+                    {freeIdea.validation_data.demand_indicators.map(
+                      (indicator: string, index: number) => (
+                        <Badge
+                          key={index}
+                          variant="outline"
+                          className="text-xs"
+                        >
+                          {indicator}
+                        </Badge>
+                      ),
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
