@@ -141,19 +141,13 @@ export const checkUserSubscription = async (userId: string) => {
 
   const supabase = await createClient();
 
-  // Debug: Check if the Supabase client was created with proper API key
-  console.log("🔍 [API KEY DEBUG] Supabase client in checkUserSubscription:", {
-    clientExists: !!supabase,
-    timestamp: new Date().toISOString(),
-  });
-
   // Authentication check with detailed logging
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
 
-  console.log("🔍 [API KEY DEBUG] Auth check in checkUserSubscription:", {
+  console.log("🔍 [AUTH DEBUG] Auth check in checkUserSubscription:", {
     hasUser: !!user,
     userId: user?.id,
     authError: authError
@@ -166,7 +160,7 @@ export const checkUserSubscription = async (userId: string) => {
   });
 
   if (authError || !user || user.id !== userId) {
-    console.error("❌ [CACHE DEBUG] Unauthorized subscription check attempt:", {
+    console.error("❌ [AUTH DEBUG] Unauthorized subscription check attempt:", {
       authError,
       hasUser: !!user,
       userIdMatch: user?.id === userId,
@@ -174,25 +168,21 @@ export const checkUserSubscription = async (userId: string) => {
     return false;
   }
 
-  console.log("🔍 [CACHE DEBUG] Fetching subscription data from Supabase:", {
+  console.log("🔍 [SUBSCRIPTION DEBUG] Querying subscriptions table:", {
     userId,
     timestamp: new Date().toISOString(),
   });
 
-  console.log("🔍 [API KEY DEBUG] About to query subscriptions table:", {
-    userId,
-    timestamp: new Date().toISOString(),
-  });
-
+  // Use maybeSingle() instead of single() to handle cases where no subscription exists
   const { data: subscription, error } = await supabase
     .from("subscriptions")
     .select("*")
     .eq("user_id", userId)
     .eq("status", "active")
-    .single();
+    .maybeSingle();
 
   if (error) {
-    console.log("❌ [API KEY DEBUG] Subscription query error:", {
+    console.log("❌ [SUBSCRIPTION DEBUG] Subscription query error:", {
       code: error.code,
       message: error.message,
       hint: error.hint,
@@ -202,10 +192,12 @@ export const checkUserSubscription = async (userId: string) => {
   }
 
   const hasSubscription = !!subscription;
-  console.log("✅ [CACHE DEBUG] checkUserSubscription result:", {
+  console.log("✅ [SUBSCRIPTION DEBUG] checkUserSubscription result:", {
     userId,
     hasSubscription,
-    subscriptionData: subscription,
+    subscriptionData: subscription
+      ? { id: subscription.id, status: subscription.status }
+      : null,
     timestamp: new Date().toISOString(),
   });
 

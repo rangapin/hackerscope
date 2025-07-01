@@ -461,12 +461,28 @@ export function LibraryClient({
       }
     };
 
+    const handleIdeaGenerated = () => {
+      console.log(
+        "🎉 [CACHE DEBUG] LibraryClient - Idea generated event received, refreshing:",
+        {
+          timestamp: new Date().toISOString(),
+          triggerSource: "idea-generated-event",
+        },
+      );
+      // Add a small delay to ensure the database has been updated
+      setTimeout(() => {
+        refreshSavedIdeas();
+      }, 1000);
+    };
+
     window.addEventListener("focus", handleFocus);
     document.addEventListener("visibilitychange", handleVisibilityChange);
+    window.addEventListener("ideaGenerated", handleIdeaGenerated);
 
     return () => {
       window.removeEventListener("focus", handleFocus);
       document.removeEventListener("visibilitychange", handleVisibilityChange);
+      window.removeEventListener("ideaGenerated", handleIdeaGenerated);
     };
   }, []);
 

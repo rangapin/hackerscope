@@ -159,9 +159,13 @@ interface SavedIdea {
 
 interface IdeaGeneratorProps {
   userEmail: string;
+  onIdeaGenerated?: () => void;
 }
 
-export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
+export default function IdeaGenerator({
+  userEmail,
+  onIdeaGenerated,
+}: IdeaGeneratorProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [industry, setIndustry] = useState("");
@@ -291,10 +295,12 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
       // Mark idea generation as complete
       setIdeaGenerationState(false);
 
-      // Force a complete page reload to bypass all caching and state management issues
-      setTimeout(() => {
-        window.location.reload();
-      }, 1500);
+      // Call the callback to refresh the library if provided
+      if (onIdeaGenerated) {
+        setTimeout(() => {
+          onIdeaGenerated();
+        }, 500);
+      }
     } catch (error) {
       console.error("Error generating idea:", error);
       toast({

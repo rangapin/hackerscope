@@ -485,7 +485,13 @@ export default function Dashboard({
             /* Premium User Dashboard */
             <div className="grid gap-4">
               {/* Idea Generator Component */}
-              <IdeaGenerator userEmail={user.email || ""} />
+              <IdeaGenerator
+                userEmail={user.email || ""}
+                onIdeaGenerated={() => {
+                  // Trigger a refresh of the library data
+                  window.dispatchEvent(new CustomEvent("ideaGenerated"));
+                }}
+              />
             </div>
           ) : (
             /* Free Tier Dashboard */
