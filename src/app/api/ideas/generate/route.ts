@@ -813,7 +813,7 @@ export async function POST(request: NextRequest) {
           console.error("❌ [406 DEBUG] Detected 406 error in database save:", {
             fullError: saveError,
             userEmail: email,
-            userId: authUser.user.id,
+            userId: authUser.id,
             timestamp: new Date().toISOString(),
           });
         }
