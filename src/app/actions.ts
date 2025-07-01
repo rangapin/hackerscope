@@ -147,6 +147,23 @@ export const checkUserSubscription = async (userId: string) => {
     return false;
   }
 
+  // First check the user's subscription_status field
+  const { data: userData, error: userError } = await supabase
+    .from("users")
+    .select("subscription_status, subscription")
+    .eq("user_id", userId)
+    .single();
+
+  if (!userError && userData) {
+    if (
+      userData.subscription_status === "premium" ||
+      userData.subscription === "premium"
+    ) {
+      return true;
+    }
+  }
+
+  // Fallback to checking subscriptions table
   const { data: subscription, error } = await supabase
     .from("subscriptions")
     .select("*")

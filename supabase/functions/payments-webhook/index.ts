@@ -89,7 +89,10 @@ async function updateSubscriptionStatus(
     if (subscription?.user_id) {
       await supabaseClient
         .from("users")
-        .update({ subscription: null })
+        .update({
+          subscription: null,
+          subscription_status: "free",
+        })
         .eq("user_id", subscription.user_id);
     }
   }
@@ -185,9 +188,57 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
 
   // Update user subscription status
   if (subscription.status === "active") {
+    console.log(
+      "Attempting to update user subscription status for user:",
+      userId,
+    );
+
+    // First, check if user exists
+    const { data: existingUser, error: userCheckError } = await supabaseClient
+      .from("users")
+      .select("user_id, email, subscription_status")
+      .eq("user_id", userId)
+      .single();
+
+    if (userCheckError) {
+      console.error("Error checking user existence:", userCheckError);
+      console.log("Attempting to find user by email from customer data...");
+
+      // Try to find user by email if direct user_id lookup fails
+      try {
+        const customer = await stripe.customers.retrieve(subscription.customer);
+        if (!customer.deleted && "email" in customer && customer.email) {
+          const { data: userByEmail, error: emailLookupError } =
+            await supabaseClient
+              .from("users")
+              .select("user_id, email, subscription_status")
+              .eq("email", customer.email)
+              .single();
+
+          if (!emailLookupError && userByEmail) {
+            console.log("Found user by email:", userByEmail.email);
+            userId = userByEmail.user_id;
+          }
+        }
+      } catch (customerError) {
+        console.error("Error retrieving customer:", customerError);
+      }
+    } else {
+      console.log(
+        "Found existing user:",
+        existingUser.email,
+        "Current status:",
+        existingUser.subscription_status,
+      );
+    }
+
     const { error: userUpdateError } = await supabaseClient
       .from("users")
-      .update({ subscription: "premium" })
+      .update({
+        subscription: "premium",
+        subscription_status: "premium",
+        updated_at: new Date().toISOString(),
+      })
       .eq("user_id", userId);
 
     if (userUpdateError) {
@@ -195,11 +246,30 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
         "Error updating user subscription status:",
         userUpdateError,
       );
+      console.error("Failed to update user:", userId);
     } else {
       console.log(
         "Successfully updated user subscription status to premium for user:",
         userId,
       );
+
+      // Verify the update worked
+      const { data: updatedUser, error: verifyError } = await supabaseClient
+        .from("users")
+        .select("user_id, email, subscription_status, subscription")
+        .eq("user_id", userId)
+        .single();
+
+      if (!verifyError && updatedUser) {
+        console.log(
+          "Verified user update - Status:",
+          updatedUser.subscription_status,
+          "Subscription:",
+          updatedUser.subscription,
+        );
+      } else {
+        console.error("Failed to verify user update:", verifyError);
+      }
     }
   }
 
@@ -250,9 +320,21 @@ async function handleSubscriptionUpdated(supabaseClient: any, event: any) {
   if (subscriptionData?.user_id) {
     const userSubscriptionStatus =
       subscription.status === "active" ? "premium" : null;
+    const subscriptionStatusField =
+      subscription.status === "active" ? "premium" : "free";
+
+    console.log(
+      `Updating user ${subscriptionData.user_id} subscription status to:`,
+      subscriptionStatusField,
+    );
+
     const { error: userUpdateError } = await supabaseClient
       .from("users")
-      .update({ subscription: userSubscriptionStatus })
+      .update({
+        subscription: userSubscriptionStatus,
+        subscription_status: subscriptionStatusField,
+        updated_at: new Date().toISOString(),
+      })
       .eq("user_id", subscriptionData.user_id);
 
     if (userUpdateError) {
@@ -262,9 +344,30 @@ async function handleSubscriptionUpdated(supabaseClient: any, event: any) {
       );
     } else {
       console.log(
-        `Successfully updated user subscription status to ${userSubscriptionStatus} for user:`,
+        `Successfully updated user subscription status to ${subscriptionStatusField} for user:`,
         subscriptionData.user_id,
       );
+
+      // Verify the update worked
+      const { data: updatedUser, error: verifyError } = await supabaseClient
+        .from("users")
+        .select("user_id, email, subscription_status, subscription")
+        .eq("user_id", subscriptionData.user_id)
+        .single();
+
+      if (!verifyError && updatedUser) {
+        console.log(
+          "Verified user update in subscription_updated - Status:",
+          updatedUser.subscription_status,
+          "Subscription:",
+          updatedUser.subscription,
+        );
+      } else {
+        console.error(
+          "Failed to verify user update in subscription_updated:",
+          verifyError,
+        );
+      }
     }
   }
 
@@ -288,7 +391,10 @@ async function handleSubscriptionDeleted(supabaseClient: any, event: any) {
     if (subscription?.metadata?.email) {
       await supabaseClient
         .from("users")
-        .update({ subscription: null })
+        .update({
+          subscription: null,
+          subscription_status: "free",
+        })
         .eq("email", subscription.metadata.email);
     }
 
@@ -417,9 +523,18 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
       (session.metadata?.userId || session.metadata?.user_id)
     ) {
       const userId = session.metadata?.userId || session.metadata?.user_id;
+      console.log(
+        "Checkout completion - updating user subscription status for:",
+        userId,
+      );
+
       const { error: userUpdateError } = await supabaseClient
         .from("users")
-        .update({ subscription: "premium" })
+        .update({
+          subscription: "premium",
+          subscription_status: "premium",
+          updated_at: new Date().toISOString(),
+        })
         .eq("user_id", userId);
 
       if (userUpdateError) {
@@ -432,6 +547,27 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
           "Successfully updated user subscription status to premium in checkout completion for user:",
           userId,
         );
+
+        // Verify the update worked
+        const { data: updatedUser, error: verifyError } = await supabaseClient
+          .from("users")
+          .select("user_id, email, subscription_status, subscription")
+          .eq("user_id", userId)
+          .single();
+
+        if (!verifyError && updatedUser) {
+          console.log(
+            "Verified user update in checkout completion - Status:",
+            updatedUser.subscription_status,
+            "Subscription:",
+            updatedUser.subscription,
+          );
+        } else {
+          console.error(
+            "Failed to verify user update in checkout completion:",
+            verifyError,
+          );
+        }
       }
     }
 
