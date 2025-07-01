@@ -17,41 +17,71 @@ DROP POLICY IF EXISTS "Users can delete their own saved ideas" ON saved_ideas;
 DROP POLICY IF EXISTS "Allow email lead insertion" ON email_leads;
 DROP POLICY IF EXISTS "Allow email lead viewing" ON email_leads;
 
--- Create RLS policies for generated_ideas table
+-- Create RLS policies for generated_ideas table using auth.uid() for better compatibility
 CREATE POLICY "Users can insert their own generated ideas"
 ON generated_ideas FOR INSERT
-WITH CHECK (auth.jwt() ->> 'email' = email);
+WITH CHECK (
+  auth.uid() IS NOT NULL AND 
+  (auth.jwt() ->> 'email' = email OR auth.email() = email)
+);
 
 CREATE POLICY "Users can view their own generated ideas"
 ON generated_ideas FOR SELECT
-USING (auth.jwt() ->> 'email' = email);
+USING (
+  auth.uid() IS NOT NULL AND 
+  (auth.jwt() ->> 'email' = email OR auth.email() = email)
+);
 
 CREATE POLICY "Users can update their own generated ideas"
 ON generated_ideas FOR UPDATE
-USING (auth.jwt() ->> 'email' = email)
-WITH CHECK (auth.jwt() ->> 'email' = email);
+USING (
+  auth.uid() IS NOT NULL AND 
+  (auth.jwt() ->> 'email' = email OR auth.email() = email)
+)
+WITH CHECK (
+  auth.uid() IS NOT NULL AND 
+  (auth.jwt() ->> 'email' = email OR auth.email() = email)
+);
 
 CREATE POLICY "Users can delete their own generated ideas"
 ON generated_ideas FOR DELETE
-USING (auth.jwt() ->> 'email' = email);
+USING (
+  auth.uid() IS NOT NULL AND 
+  (auth.jwt() ->> 'email' = email OR auth.email() = email)
+);
 
 -- Create RLS policies for saved_ideas table
 CREATE POLICY "Users can insert their own saved ideas"
 ON saved_ideas FOR INSERT
-WITH CHECK (auth.jwt() ->> 'email' = user_email);
+WITH CHECK (
+  auth.uid() IS NOT NULL AND 
+  (auth.jwt() ->> 'email' = user_email OR auth.email() = user_email)
+);
 
 CREATE POLICY "Users can view their own saved ideas"
 ON saved_ideas FOR SELECT
-USING (auth.jwt() ->> 'email' = user_email);
+USING (
+  auth.uid() IS NOT NULL AND 
+  (auth.jwt() ->> 'email' = user_email OR auth.email() = user_email)
+);
 
 CREATE POLICY "Users can update their own saved ideas"
 ON saved_ideas FOR UPDATE
-USING (auth.jwt() ->> 'email' = user_email)
-WITH CHECK (auth.jwt() ->> 'email' = user_email);
+USING (
+  auth.uid() IS NOT NULL AND 
+  (auth.jwt() ->> 'email' = user_email OR auth.email() = user_email)
+)
+WITH CHECK (
+  auth.uid() IS NOT NULL AND 
+  (auth.jwt() ->> 'email' = user_email OR auth.email() = user_email)
+);
 
 CREATE POLICY "Users can delete their own saved ideas"
 ON saved_ideas FOR DELETE
-USING (auth.jwt() ->> 'email' = user_email);
+USING (
+  auth.uid() IS NOT NULL AND 
+  (auth.jwt() ->> 'email' = user_email OR auth.email() = user_email)
+);
 
 -- Create RLS policies for email_leads table (allow public access for lead capture)
 CREATE POLICY "Allow email lead insertion"

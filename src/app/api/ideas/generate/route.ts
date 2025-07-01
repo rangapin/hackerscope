@@ -573,9 +573,38 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 4: Save to database
+    // Step 4: Save to database with enhanced error handling
     let savedIdea;
     try {
+      // Verify user authentication before database operation
+      const { data: authUser, error: authCheckError } =
+        await supabase.auth.getUser();
+
+      if (authCheckError || !authUser.user) {
+        console.error("Authentication verification failed:", authCheckError);
+        return NextResponse.json(
+          { error: "Authentication required for database operation" },
+          { status: 401 },
+        );
+      }
+
+      // Ensure the authenticated user's email matches the request email
+      if (authUser.user.email !== email) {
+        console.error("Email mismatch in database operation", {
+          authEmail: authUser.user.email,
+          requestEmail: email,
+        });
+        return NextResponse.json(
+          { error: "Email verification failed" },
+          { status: 403 },
+        );
+      }
+
+      console.log("Attempting to save idea for user:", {
+        userId: authUser.user.id,
+        email: authUser.user.email,
+      });
+
       const { data, error: saveError } = await supabase
         .from("generated_ideas")
         .insert({
@@ -601,6 +630,22 @@ export async function POST(request: NextRequest) {
           details: saveError.details,
           hint: saveError.hint,
         });
+
+        // Handle specific RLS policy errors
+        if (
+          saveError.code === "42501" ||
+          saveError.message?.includes("policy")
+        ) {
+          return NextResponse.json(
+            {
+              error: "Permission denied",
+              message:
+                "Unable to save idea due to security policy. Please try signing out and back in.",
+            },
+            { status: 403 },
+          );
+        }
+
         return NextResponse.json(
           {
             error: "Failed to save idea to database",
@@ -611,6 +656,7 @@ export async function POST(request: NextRequest) {
       }
 
       savedIdea = data;
+      console.log("Successfully saved idea:", { id: savedIdea.id, email });
     } catch (dbError) {
       console.error("Database operation error:", dbError);
       return NextResponse.json(
@@ -622,8 +668,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 5: Automatically save to library
+    // Step 5: Automatically save to library with enhanced error handling
     try {
+      console.log("Attempting to save to library for user:", email);
+
       const { error: librarySaveError } = await supabase
         .from("saved_ideas")
         .insert({
@@ -643,6 +691,11 @@ export async function POST(request: NextRequest) {
           hint: librarySaveError.hint,
         });
         // Don't fail the request if library save fails, just log it
+      } else {
+        console.log("Successfully saved to library:", {
+          ideaId: savedIdea.id,
+          email,
+        });
       }
     } catch (libraryError) {
       console.error("Library operation error:", libraryError);
