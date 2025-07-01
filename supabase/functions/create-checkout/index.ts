@@ -32,8 +32,12 @@ Deno.serve(async (req) => {
         body: JSON.stringify({
           priceId,
           customerEmail,
-          successUrl,
-          cancelUrl,
+          successUrl:
+            successUrl ||
+            "https://ecstatic-goldwasser9-pep8a.view-3.tempo-dev.app/dashboard",
+          cancelUrl:
+            cancelUrl ||
+            "https://ecstatic-goldwasser9-pep8a.view-3.tempo-dev.app/dashboard",
         }),
       },
     );

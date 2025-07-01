@@ -267,14 +267,8 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
     setIsGenerating(false);
     setShowFullScreenLoading(false);
 
-    // Use router.push with cache busting and then force refresh
-    const timestamp = Date.now();
-    router.push(`/library?refresh=${timestamp}`);
-
-    // Small delay then force a complete page refresh to ensure server components reload
-    setTimeout(() => {
-      window.location.href = `/library?t=${timestamp}`;
-    }, 100);
+    // Force a complete page refresh to ensure server components reload with fresh data
+    window.location.href = "/library";
   };
 
   const handleLike = () => {
