@@ -9,7 +9,6 @@ import { checkUserSubscription } from "@/app/actions";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
@@ -364,7 +363,7 @@ export function LibraryClient({}: LibraryClientProps = {}) {
             {selectedIdea && (
               <div className="space-y-8">
                 {/* Solution Section */}
-                <div className="bg-cream rounded-lg p-8 border border-gray-200">
+                <div className="bg-orange-50 rounded-lg p-8 border border-gray-200">
                   <h3 className="text-lg font-medium text-black mb-6 border-l-4 border-[#D4714B] pl-4">
                     Solution
                   </h3>
@@ -377,7 +376,7 @@ export function LibraryClient({}: LibraryClientProps = {}) {
                   <>
                     {/* Market Analysis */}
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                      <div className="bg-cream rounded-lg p-8 border border-gray-200">
+                      <div className="bg-orange-50 rounded-lg p-8 border border-gray-200">
                         <h4 className="text-lg font-medium text-black mb-6 border-l-4 border-[#D4714B] pl-4">
                           Market Size
                         </h4>
@@ -387,7 +386,7 @@ export function LibraryClient({}: LibraryClientProps = {}) {
                         </p>
                       </div>
 
-                      <div className="bg-cream rounded-lg p-8 border border-gray-200">
+                      <div className="bg-orange-50 rounded-lg p-8 border border-gray-200">
                         <h4 className="text-lg font-medium text-black mb-6 border-l-4 border-[#D4714B] pl-4">
                           Target Audience
                         </h4>
@@ -402,7 +401,7 @@ export function LibraryClient({}: LibraryClientProps = {}) {
                     {selectedIdea.generated_idea.revenue_streams &&
                       selectedIdea.generated_idea.revenue_streams.length >
                         0 && (
-                        <div className="bg-cream rounded-lg p-8 border border-gray-200">
+                        <div className="bg-orange-50 rounded-lg p-8 border border-gray-200">
                           <h4 className="text-lg font-medium text-black mb-6 border-l-4 border-[#D4714B] pl-4">
                             Revenue Streams
                           </h4>
@@ -425,7 +424,7 @@ export function LibraryClient({}: LibraryClientProps = {}) {
 
                     {/* Validation Data */}
                     {selectedIdea.generated_idea.validation_data && (
-                      <div className="bg-cream rounded-lg p-8 border border-gray-200">
+                      <div className="bg-orange-50 rounded-lg p-8 border border-gray-200">
                         <h3 className="text-lg font-medium text-black mb-8 border-l-4 border-[#D4714B] pl-4">
                           Market Validation
                         </h3>
@@ -448,7 +447,7 @@ export function LibraryClient({}: LibraryClientProps = {}) {
                                         key={index}
                                         className="flex items-start gap-3 text-[#666] leading-loose"
                                       >
-                                        <div className="w-2 h-2 bg-terracotta-500 rounded-full mt-2 flex-shrink-0" />
+                                        <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0" />
                                         <span>{trend}</span>
                                       </div>
                                     ))}
@@ -489,7 +488,7 @@ export function LibraryClient({}: LibraryClientProps = {}) {
                                         key={index}
                                         className="flex items-start gap-3 text-[#666] leading-loose"
                                       >
-                                        <div className="w-2 h-2 bg-terracotta-500 rounded-full mt-2 flex-shrink-0" />
+                                        <div className="w-2 h-2 bg-orange-500 rounded-full mt-2 flex-shrink-0" />
                                         <span>{indicator}</span>
                                       </div>
                                     ))}
