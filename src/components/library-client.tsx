@@ -17,7 +17,7 @@ import {
   DialogDescription,
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { BookOpen } from "lucide-react";
+import { BookOpen, RefreshCw } from "lucide-react";
 
 // Terracotta pulsing dot loading animation
 function LoadingAnimation() {
@@ -76,18 +76,21 @@ export function LibraryClient({ savedIdeas }: LibraryClientProps) {
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [isClient, setIsClient] = useState(false);
+  const [ideas, setIdeas] = useState<SavedIdea[]>(savedIdeas || []);
   const router = useRouter();
 
-  // Ensure proper hydration
+  // Ensure proper hydration and update ideas when props change
   useEffect(() => {
     setIsClient(true);
-  }, []);
+    setIdeas(savedIdeas || []);
+  }, [savedIdeas]);
 
   // Debug logging
   useEffect(() => {
     console.log("LibraryClient received savedIdeas:", savedIdeas);
     console.log("savedIdeas length:", savedIdeas?.length || 0);
-  }, [savedIdeas]);
+    console.log("Current ideas state:", ideas);
+  }, [savedIdeas, ideas]);
 
   const handleViewDetails = (idea: SavedIdea) => {
     setSelectedIdea(idea);
@@ -99,7 +102,7 @@ export function LibraryClient({ savedIdeas }: LibraryClientProps) {
     return <LoadingAnimation />;
   }
 
-  if (!savedIdeas || savedIdeas.length === 0) {
+  if (!ideas || ideas.length === 0) {
     return (
       <div className="space-y-8">
         <Card className="bg-white border-gray-200">
@@ -113,23 +116,24 @@ export function LibraryClient({ savedIdeas }: LibraryClientProps) {
                 Generate your first startup idea or refresh if you just created
                 one.
               </p>
-              <Button
-                onClick={() => window.location.reload()}
-                variant="outline"
-                size="lg"
-                className="mb-4 bg-white border-2 border-[#D4714B] text-[#D4714B] hover:bg-[#D4714B] hover:text-white font-medium py-3 px-6 rounded-md transition-colors duration-200"
-              >
-                Refresh Page
-              </Button>
             </div>
           </CardContent>
         </Card>
 
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-4">
+          <Button
+            onClick={() => window.location.reload()}
+            variant="outline"
+            size="lg"
+            className="bg-white border-2 border-[#D4714B] text-[#D4714B] hover:bg-[#D4714B] hover:text-white font-medium py-3 px-6 rounded-md transition-colors duration-200 flex items-center gap-2"
+          >
+            <RefreshCw className="w-4 h-4" />
+            Refresh Page
+          </Button>
           <Button
             onClick={() => router.push("/dashboard")}
             size="lg"
-            className="w-64 bg-black hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-md transition-colors duration-200"
+            className="bg-black hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-md transition-colors duration-200"
           >
             Generate more ideas
           </Button>
@@ -141,8 +145,8 @@ export function LibraryClient({ savedIdeas }: LibraryClientProps) {
   return (
     <div className="space-y-8">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {savedIdeas && savedIdeas.length > 0 ? (
-          savedIdeas.map((idea) => (
+        {ideas && ideas.length > 0 ? (
+          ideas.map((idea) => (
             <Card
               key={idea.id}
               className="bg-white border-gray-200 hover:shadow-md transition-shadow flex flex-col h-full"
@@ -188,11 +192,20 @@ export function LibraryClient({ savedIdeas }: LibraryClientProps) {
         )}
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex justify-center gap-4">
+        <Button
+          onClick={() => window.location.reload()}
+          variant="outline"
+          size="lg"
+          className="bg-white border-2 border-[#D4714B] text-[#D4714B] hover:bg-[#D4714B] hover:text-white font-medium py-3 px-6 rounded-md transition-colors duration-200 flex items-center gap-2"
+        >
+          <RefreshCw className="w-4 h-4" />
+          Refresh Page
+        </Button>
         <Button
           onClick={() => router.push("/dashboard")}
           size="lg"
-          className="w-64 bg-black hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-md transition-colors duration-200"
+          className="bg-black hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-md transition-colors duration-200"
         >
           Generate more ideas
         </Button>
