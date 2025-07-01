@@ -42,8 +42,8 @@ export function shouldDisableBackgroundFetching(): boolean {
   const now = Date.now();
   const timeSinceGeneration = now - ideaGenerationCompleteTime;
 
-  // Disable background fetching for 3 seconds after idea generation
-  return timeSinceGeneration < 3000;
+  // Disable background fetching for 5 seconds after idea generation
+  return timeSinceGeneration < 5000;
 }
 
 // Helper function to set idea generation state

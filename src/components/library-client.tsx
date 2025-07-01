@@ -116,7 +116,7 @@ export function LibraryClient({
     // Skip background fetching if idea generation just completed
     if (shouldDisableBackgroundFetching()) {
       console.log(
-        "🚫 [BACKGROUND FETCH DISABLED] LibraryClient - Skipping refresh - idea generation in progress or recently completed",
+        "🚫 [BACKGROUND FETCH DISABLED] LibraryClient - Skipping refresh - idea generation in progress or recently completed (5 second block)",
       );
       return;
     }
@@ -439,7 +439,7 @@ export function LibraryClient({
         refreshSavedIdeas();
       } else {
         console.log(
-          "🚫 [BACKGROUND FETCH DISABLED] LibraryClient - Skipping focus refresh - idea generation in progress or recently completed",
+          "🚫 [BACKGROUND FETCH DISABLED] LibraryClient - Skipping focus refresh - idea generation in progress or recently completed (5 second block)",
         );
       }
     };
@@ -456,7 +456,7 @@ export function LibraryClient({
         refreshSavedIdeas();
       } else if (!document.hidden && shouldDisableBackgroundFetching()) {
         console.log(
-          "🚫 [BACKGROUND FETCH DISABLED] LibraryClient - Skipping visibility refresh - idea generation in progress or recently completed",
+          "🚫 [BACKGROUND FETCH DISABLED] LibraryClient - Skipping visibility refresh - idea generation in progress or recently completed (5 second block)",
         );
       }
     };

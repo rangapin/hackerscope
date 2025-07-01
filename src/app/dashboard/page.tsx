@@ -262,7 +262,7 @@ export default function Dashboard({
     // Skip background fetching if idea generation just completed
     if (shouldDisableBackgroundFetching()) {
       console.log(
-        "🚫 [BACKGROUND FETCH DISABLED] Skipping subscription status refresh - idea generation in progress or recently completed",
+        "🚫 [BACKGROUND FETCH DISABLED] Skipping subscription status refresh - idea generation in progress or recently completed (5 second block)",
       );
       return isSubscribed;
     }
@@ -329,7 +329,7 @@ export default function Dashboard({
           }
         } else {
           console.log(
-            "🚫 [BACKGROUND FETCH DISABLED] Skipping free idea status check - idea generation in progress or recently completed",
+            "🚫 [BACKGROUND FETCH DISABLED] Skipping free idea status check - idea generation in progress or recently completed (5 second block)",
           );
         }
       } catch (error) {
@@ -376,7 +376,7 @@ export default function Dashboard({
         }
       } else if (shouldDisableBackgroundFetching()) {
         console.log(
-          "🚫 [BACKGROUND FETCH DISABLED] Skipping focus refresh - idea generation in progress or recently completed",
+          "🚫 [BACKGROUND FETCH DISABLED] Skipping focus refresh - idea generation in progress or recently completed (5 second block)",
         );
       }
     };
