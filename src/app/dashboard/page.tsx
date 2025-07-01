@@ -30,6 +30,14 @@ async function checkUserHasFreeIdea(userEmail: string, supabaseClient?: any) {
     timestamp: new Date().toISOString(),
   });
 
+  // Validate input parameters
+  if (!userEmail) {
+    console.error(
+      "❌ [USER_ID DEBUG] checkUserHasFreeIdea called with undefined userEmail",
+    );
+    return false;
+  }
+
   try {
     // Check authentication and JWT token
     const { data: authUser, error: authError } = await supabase.auth.getUser();
@@ -54,6 +62,23 @@ async function checkUserHasFreeIdea(userEmail: string, supabaseClient?: any) {
       );
       return false;
     }
+
+    // Verify email matches authenticated user
+    if (authUser.user.email !== userEmail) {
+      console.error(
+        "❌ [USER_ID DEBUG] Email mismatch in checkUserHasFreeIdea:",
+        {
+          authEmail: authUser.user.email,
+          requestEmail: userEmail,
+        },
+      );
+      return false;
+    }
+
+    console.log(
+      "🔍 [USER_ID DEBUG] checkUserHasFreeIdea using email:",
+      userEmail,
+    );
 
     const { data, error } = await supabase
       .from("generated_ideas")
@@ -134,6 +159,14 @@ async function getSavedIdeasWithDetails(
     },
   );
 
+  // Validate input parameters
+  if (!userEmail) {
+    console.error(
+      "❌ [USER_ID DEBUG] getSavedIdeasWithDetails called with undefined userEmail",
+    );
+    return [];
+  }
+
   try {
     // Check authentication and JWT token
     const { data: authUser, error: authError } = await supabase.auth.getUser();
@@ -161,6 +194,23 @@ async function getSavedIdeasWithDetails(
       );
       return [];
     }
+
+    // Verify email matches authenticated user
+    if (authUser.user.email !== userEmail) {
+      console.error(
+        "❌ [USER_ID DEBUG] Email mismatch in getSavedIdeasWithDetails:",
+        {
+          authEmail: authUser.user.email,
+          requestEmail: userEmail,
+        },
+      );
+      return [];
+    }
+
+    console.log(
+      "🔍 [USER_ID DEBUG] getSavedIdeasWithDetails using email:",
+      userEmail,
+    );
 
     // Get saved ideas
     const { data: savedIdeas, error: savedError } = await supabase

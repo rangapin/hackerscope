@@ -133,14 +133,35 @@ export function LibraryClient({
       setIsRefreshing(true);
       const {
         data: { user },
+        error: authError,
       } = await supabase.auth.getUser();
 
-      if (!user?.email) {
-        console.log(
-          "❌ [DEBUG] LibraryClient - No user email found in refresh",
+      if (authError || !user) {
+        console.error(
+          "❌ [USER_ID DEBUG] LibraryClient - Auth error in refresh:",
+          authError,
         );
         return;
       }
+
+      if (!user.email) {
+        console.error(
+          "❌ [USER_ID DEBUG] LibraryClient - No user email found in refresh",
+        );
+        return;
+      }
+
+      if (!user.id) {
+        console.error(
+          "❌ [USER_ID DEBUG] LibraryClient - No user ID found in refresh",
+        );
+        return;
+      }
+
+      console.log("🔍 [USER_ID DEBUG] LibraryClient refreshSavedIdeas using:", {
+        userId: user.id,
+        userEmail: user.email,
+      });
 
       console.log("👤 [DEBUG] LibraryClient - Refreshing for user:", {
         email: user.email,

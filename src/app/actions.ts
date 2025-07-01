@@ -139,6 +139,14 @@ export const checkUserSubscription = async (userId: string) => {
     timestamp: new Date().toISOString(),
   });
 
+  // Validate input parameter
+  if (!userId) {
+    console.error(
+      "❌ [USER_ID DEBUG] checkUserSubscription called with undefined userId",
+    );
+    return false;
+  }
+
   const supabase = await createClient();
 
   // Authentication check with detailed logging
@@ -156,6 +164,7 @@ export const checkUserSubscription = async (userId: string) => {
           message: authError.message,
         }
       : null,
+    requestedUserId: userId,
     timestamp: new Date().toISOString(),
   });
 
@@ -164,9 +173,16 @@ export const checkUserSubscription = async (userId: string) => {
       authError,
       hasUser: !!user,
       userIdMatch: user?.id === userId,
+      providedUserId: userId,
+      actualUserId: user?.id,
     });
     return false;
   }
+
+  console.log(
+    "🔍 [USER_ID DEBUG] checkUserSubscription using user_id:",
+    userId,
+  );
 
   console.log("🔍 [SUBSCRIPTION DEBUG] Querying subscriptions table:", {
     userId,

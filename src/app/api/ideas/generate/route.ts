@@ -320,23 +320,33 @@ Return JSON format:
 
 // Check user subscription status
 async function checkUserLimits(email: string, supabase: any) {
-  // Check if user has active subscription
-  const { data: user, error: userError } = await supabase
-    .from("users")
-    .select("subscription, user_id")
-    .eq("email", email)
-    .single();
+  // First, get the authenticated user to ensure we have a valid user_id
+  const { data: authUser, error: authError } = await supabase.auth.getUser();
 
-  if (userError) {
-    console.error("Error fetching user:", userError);
+  if (authError || !authUser.user) {
+    console.error("Authentication error in checkUserLimits:", authError);
+    throw new Error("Authentication required");
   }
 
+  // Verify the email matches the authenticated user
+  if (authUser.user.email !== email) {
+    console.error("Email mismatch in checkUserLimits:", {
+      authEmail: authUser.user.email,
+      requestEmail: email,
+    });
+    throw new Error("Email verification failed");
+  }
+
+  const userId = authUser.user.id;
+  console.log("🔍 [USER_ID DEBUG] checkUserLimits using user_id:", userId);
+
+  // Check if user has active subscription using the authenticated user's ID
   const { data: subscription, error: subscriptionError } = await supabase
     .from("subscriptions")
     .select("status")
-    .eq("user_id", user?.user_id)
+    .eq("user_id", userId)
     .eq("status", "active")
-    .single();
+    .maybeSingle();
 
   if (subscriptionError) {
     console.error("Error fetching subscription:", subscriptionError);
