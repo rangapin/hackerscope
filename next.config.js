@@ -4,6 +4,10 @@ const nextConfig = {
     serverComponentsExternalPackages: ["tempo-devtools"],
     esmExternals: "loose",
   },
+  env: {
+    NEXT_PUBLIC_TEMPO:
+      process.env.NODE_ENV === "development" ? "true" : undefined,
+  },
   webpack: (config, { isServer, dev }) => {
     // Exclude Supabase functions from webpack compilation
     config.externals = config.externals || [];

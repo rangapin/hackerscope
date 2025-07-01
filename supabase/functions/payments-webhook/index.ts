@@ -528,46 +528,106 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
         userId,
       );
 
-      const { error: userUpdateError } = await supabaseClient
+      // First, check if user exists in public.users table
+      const { data: existingUser, error: userCheckError } = await supabaseClient
         .from("users")
-        .update({
-          subscription: "premium",
-          subscription_status: "premium",
-          updated_at: new Date().toISOString(),
-        })
-        .eq("user_id", userId);
+        .select("user_id, email, subscription_status")
+        .eq("user_id", userId)
+        .single();
 
-      if (userUpdateError) {
-        console.error(
-          "Error updating user subscription status in checkout completion:",
-          userUpdateError,
-        );
-      } else {
+      if (userCheckError && userCheckError.code === "PGRST116") {
+        // User doesn't exist in public.users, let's create them from auth.users
         console.log(
-          "Successfully updated user subscription status to premium in checkout completion for user:",
+          "User not found in public.users, creating from auth.users for:",
           userId,
         );
 
-        // Verify the update worked
-        const { data: updatedUser, error: verifyError } = await supabaseClient
-          .from("users")
-          .select("user_id, email, subscription_status, subscription")
-          .eq("user_id", userId)
-          .single();
+        // Get user data from auth.users
+        const { data: authUser, error: authUserError } =
+          await supabaseClient.auth.admin.getUserById(userId);
 
-        if (!verifyError && updatedUser) {
-          console.log(
-            "Verified user update in checkout completion - Status:",
-            updatedUser.subscription_status,
-            "Subscription:",
-            updatedUser.subscription,
+        if (authUserError || !authUser.user) {
+          console.error("Error fetching user from auth.users:", authUserError);
+        } else {
+          // Create user in public.users table
+          const { error: createUserError } = await supabaseClient
+            .from("users")
+            .insert({
+              id: authUser.user.id,
+              user_id: authUser.user.id,
+              email: authUser.user.email,
+              name:
+                authUser.user.user_metadata?.name ||
+                authUser.user.user_metadata?.full_name,
+              full_name: authUser.user.user_metadata?.full_name,
+              avatar_url: authUser.user.user_metadata?.avatar_url,
+              token_identifier: authUser.user.email,
+              subscription: "premium",
+              subscription_status: "premium",
+              created_at: authUser.user.created_at,
+              updated_at: new Date().toISOString(),
+            });
+
+          if (createUserError) {
+            console.error(
+              "Error creating user in public.users:",
+              createUserError,
+            );
+          } else {
+            console.log(
+              "Successfully created user in public.users with premium status:",
+              userId,
+            );
+          }
+        }
+      } else if (!userCheckError && existingUser) {
+        // User exists, update their subscription status
+        const { error: userUpdateError } = await supabaseClient
+          .from("users")
+          .update({
+            subscription: "premium",
+            subscription_status: "premium",
+            updated_at: new Date().toISOString(),
+          })
+          .eq("user_id", userId);
+
+        if (userUpdateError) {
+          console.error(
+            "Error updating user subscription status in checkout completion:",
+            userUpdateError,
           );
         } else {
-          console.error(
-            "Failed to verify user update in checkout completion:",
-            verifyError,
+          console.log(
+            "Successfully updated existing user subscription status to premium in checkout completion for user:",
+            userId,
           );
         }
+      } else {
+        console.error(
+          "Unexpected error checking user existence:",
+          userCheckError,
+        );
+      }
+
+      // Verify the final user state
+      const { data: finalUser, error: verifyError } = await supabaseClient
+        .from("users")
+        .select("user_id, email, subscription_status, subscription")
+        .eq("user_id", userId)
+        .single();
+
+      if (!verifyError && finalUser) {
+        console.log(
+          "Verified final user state in checkout completion - Status:",
+          finalUser.subscription_status,
+          "Subscription:",
+          finalUser.subscription,
+        );
+      } else {
+        console.error(
+          "Failed to verify final user state in checkout completion:",
+          verifyError,
+        );
       }
     }
 
