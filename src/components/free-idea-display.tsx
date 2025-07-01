@@ -288,15 +288,9 @@ export function FreeIdeaDisplay({
       // Hide loading overlay with a slight delay for smooth transition
       setTimeout(() => {
         setShowFullScreenLoading(false);
+        // Refresh the page to show the generated idea immediately
+        window.location.reload();
       }, 500);
-
-      // Instead of page reload, directly load the new idea data
-      setTimeout(async () => {
-        setShowFullScreenLoading(false);
-        setIsGenerating(false);
-        // Force load the newly generated idea, bypassing the background fetch prevention
-        await checkExistingFreeIdea(true);
-      }, 1000);
     } catch (err) {
       console.error("Error generating free idea:", err);
       setError("Failed to generate your free idea. Please try again.");
