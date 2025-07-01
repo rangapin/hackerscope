@@ -291,7 +291,7 @@ export default function ProfileModal({
                             Plan Cost
                           </span>
                           <span className="text-base md:text-sm text-textColor-DEFAULT md:text-right">
-                            €{(subscription.amount / 100).toFixed(2)}/
+                            €9.00/
                             {subscription.interval}
                           </span>
                         </div>
@@ -375,7 +375,8 @@ export default function ProfileModal({
                     {!isSubscribed && (
                       <div className="flex items-center justify-center h-full">
                         <p className="text-base md:text-sm text-muted-foreground text-center">
-                          Use the "Upgrade to Premium" button in the top navigation to upgrade your account
+                          Use the "Upgrade to Premium" button in the top
+                          navigation to upgrade your account
                         </p>
                       </div>
                     )}
