@@ -154,7 +154,6 @@ export const checkUserSubscription = async (userId: string) => {
       ? {
           code: authError.code,
           message: authError.message,
-          details: authError.details,
         }
       : null,
     timestamp: new Date().toISOString(),
@@ -185,7 +184,6 @@ export const checkUserSubscription = async (userId: string) => {
     console.log("❌ [API KEY DEBUG] Subscription query error:", {
       code: error.code,
       message: error.message,
-      details: error.details,
       hint: error.hint,
       timestamp: new Date().toISOString(),
     });

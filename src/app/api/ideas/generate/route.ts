@@ -246,8 +246,10 @@ Return JSON format:
             let cleanMatch = match
               .replace(/\n\s*/g, " ")
               .replace(/\s+/g, " ")
-              .replace(/,\s*}/g, "}")
-              .replace(/,\s*]/g, "]")
+              .replace(/,\s*([}\]])/g, "$1") // Remove trailing commas
+              .replace(/([{\[])\s+/g, "$1") // Remove spaces after opening brackets
+              .replace(/\s+([}\]])/g, "$1") // Remove spaces before closing brackets
+              .replace(/"\s*:\s*/g, '":') // Normalize key-value separators
               .trim();
 
             const parsed = JSON.parse(cleanMatch);
@@ -595,7 +597,6 @@ export async function POST(request: NextRequest) {
           authCheckError,
           errorCode: authCheckError?.code,
           errorMessage: authCheckError?.message,
-          errorDetails: authCheckError?.details,
           timestamp: new Date().toISOString(),
         });
         return NextResponse.json(
@@ -684,7 +685,6 @@ export async function POST(request: NextRequest) {
         console.error("❌ [406 DEBUG] Database save error:", {
           code: saveError.code,
           message: saveError.message,
-          details: saveError.details,
           hint: saveError.hint,
           timestamp: new Date().toISOString(),
         });
@@ -721,7 +721,6 @@ export async function POST(request: NextRequest) {
             debugInfo: {
               code: saveError.code,
               hint: saveError.hint,
-              details: saveError.details,
             },
           },
           { status: 500 },
@@ -775,7 +774,6 @@ export async function POST(request: NextRequest) {
         console.error("Library save error details:", {
           code: librarySaveError.code,
           message: librarySaveError.message,
-          details: librarySaveError.details,
           hint: librarySaveError.hint,
         });
         // Don't fail the request if library save fails, just log it
