@@ -283,6 +283,18 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
 
       // Add a small delay to ensure the idea is fully saved
       await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Hide loading overlay
+      setIsGenerating(false);
+      setShowFullScreenLoading(false);
+
+      // Mark idea generation as complete
+      setIdeaGenerationState(false);
+
+      // Force a complete page reload to bypass all caching and state management issues
+      setTimeout(() => {
+        window.location.reload();
+      }, 1500);
     } catch (error) {
       console.error("Error generating idea:", error);
       toast({
@@ -296,19 +308,6 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
       setIdeaGenerationState(false);
       return;
     }
-
-    // Hide loading overlay
-    setIsGenerating(false);
-    setShowFullScreenLoading(false);
-
-    // Mark idea generation as complete
-    setIdeaGenerationState(false);
-
-    // Add a delay to ensure database transaction is fully committed and then force refresh
-    setTimeout(() => {
-      // Force a complete page reload to bypass all caching issues
-      window.location.reload();
-    }, 2000);
   };
 
   const handleLike = () => {

@@ -290,11 +290,10 @@ export function FreeIdeaDisplay({
         setShowFullScreenLoading(false);
       }, 500);
 
-      // Redirect to library page after hiding overlay with router refresh
+      // Force a complete page reload to bypass all caching and state management issues
       setTimeout(() => {
-        router.push("/library");
-        router.refresh();
-      }, 800);
+        window.location.reload();
+      }, 1000);
     } catch (err) {
       console.error("Error generating free idea:", err);
       setError("Failed to generate your free idea. Please try again.");
