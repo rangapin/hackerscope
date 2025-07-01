@@ -173,9 +173,9 @@ async function getSavedIdeasWithDetails(
   }
 
   // Merge the data
-  const mergedIdeas = savedIdeas.map((savedIdea) => {
+  const mergedIdeas = savedIdeas.map((savedIdea: any) => {
     const generatedIdea = generatedIdeas?.find(
-      (gi) => gi.id === savedIdea.idea_id,
+      (gi: any) => gi.id === savedIdea.idea_id,
     );
     return {
       ...savedIdea,
