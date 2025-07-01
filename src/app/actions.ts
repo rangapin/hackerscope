@@ -140,9 +140,10 @@ export const checkUserSubscription = async (userId: string) => {
   });
 
   // Validate input parameter
-  if (!userId) {
+  if (!userId || typeof userId !== "string" || userId.trim() === "") {
     console.error(
-      "❌ [USER_ID DEBUG] checkUserSubscription called with undefined userId",
+      "❌ [USER_ID DEBUG] checkUserSubscription called with invalid userId:",
+      { userId, type: typeof userId },
     );
     return false;
   }
@@ -174,9 +175,10 @@ export const checkUserSubscription = async (userId: string) => {
   }
 
   const user = authData.user;
-  if (!user.id) {
-    console.error("❌ [AUTH DEBUG] User ID missing in checkUserSubscription:", {
-      user,
+  if (!user.id || typeof user.id !== "string" || user.id.trim() === "") {
+    console.error("❌ [AUTH DEBUG] Invalid user ID in checkUserSubscription:", {
+      userId: user.id,
+      type: typeof user.id,
       requestedUserId: userId,
       timestamp: new Date().toISOString(),
     });
@@ -211,10 +213,11 @@ export const checkUserSubscription = async (userId: string) => {
     timestamp: new Date().toISOString(),
   });
 
-  // Final validation before database query
-  if (!userId) {
+  // Final validation before database query - ensure userId is still valid
+  if (!userId || typeof userId !== "string" || userId.trim() === "") {
     console.error(
-      "❌ [USER_ID DEBUG] userId is undefined before subscription query",
+      "❌ [USER_ID DEBUG] userId is invalid before subscription query:",
+      { userId, type: typeof userId },
     );
     return false;
   }
@@ -232,6 +235,7 @@ export const checkUserSubscription = async (userId: string) => {
       code: error.code,
       message: error.message,
       hint: error.hint,
+      userId,
       timestamp: new Date().toISOString(),
     });
     return false;

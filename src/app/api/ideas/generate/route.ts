@@ -351,6 +351,15 @@ async function checkUserLimits(email: string, supabase: any) {
   const userId = user.id;
   console.log("🔍 [USER_ID DEBUG] checkUserLimits using user_id:", userId);
 
+  // Final validation before subscription query
+  if (!userId || typeof userId !== "string" || userId.trim() === "") {
+    console.error(
+      "❌ [USER_ID DEBUG] Invalid userId before subscription query in checkUserLimits:",
+      { userId, type: typeof userId },
+    );
+    throw new Error("Invalid user ID for subscription check");
+  }
+
   // Check if user has active subscription using the authenticated user's ID
   const { data: subscription, error: subscriptionError } = await supabase
     .from("subscriptions")

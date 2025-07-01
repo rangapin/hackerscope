@@ -351,11 +351,11 @@ export default function Dashboard({
 
   // Function to refresh subscription status with error handling to prevent UI clearing
   const refreshSubscriptionStatus = async (userId: string) => {
-    // Validate userId parameter
+    // Validate userId parameter with comprehensive checks
     if (!userId || typeof userId !== "string" || userId.trim() === "") {
       console.error(
         "❌ [USER_ID DEBUG] refreshSubscriptionStatus called with invalid userId:",
-        { userId, type: typeof userId },
+        { userId, type: typeof userId, stringified: String(userId) },
       );
       return isSubscribed;
     }
@@ -369,6 +369,10 @@ export default function Dashboard({
     }
 
     try {
+      console.log(
+        "🔍 [USER_ID DEBUG] refreshSubscriptionStatus calling checkUserSubscription with:",
+        { userId, type: typeof userId },
+      );
       const subscriptionStatus = await checkUserSubscription(userId);
       setIsSubscribed(subscriptionStatus);
       return subscriptionStatus;
@@ -426,11 +430,26 @@ export default function Dashboard({
         if (searchParams.session_id) {
           // If there's a session_id, wait a bit for Stripe to process and then refresh subscription
           await new Promise((resolve) => setTimeout(resolve, 2000));
-          await refreshSubscriptionStatus(user.id);
+          if (user.id && typeof user.id === "string" && user.id.trim() !== "") {
+            await refreshSubscriptionStatus(user.id);
+          } else {
+            console.error(
+              "❌ [USER_ID DEBUG] Invalid user.id for subscription refresh after payment:",
+              { userId: user.id, type: typeof user.id },
+            );
+          }
         } else {
           // Normal subscription check
-          const subscriptionStatus = await checkUserSubscription(user.id);
-          setIsSubscribed(subscriptionStatus);
+          if (user.id && typeof user.id === "string" && user.id.trim() !== "") {
+            const subscriptionStatus = await checkUserSubscription(user.id);
+            setIsSubscribed(subscriptionStatus);
+          } else {
+            console.error(
+              "❌ [USER_ID DEBUG] Invalid user.id for normal subscription check:",
+              { userId: user.id, type: typeof user.id },
+            );
+            setIsSubscribed(false);
+          }
         }
 
         // Check free idea status with error handling to prevent race condition
@@ -469,11 +488,19 @@ export default function Dashboard({
     // Set up an interval to periodically check subscription status in case of external updates
     const subscriptionCheckInterval = setInterval(async () => {
       if (user?.id && typeof user.id === "string" && user.id.trim() !== "") {
+        console.log(
+          "🔄 [SUBSCRIPTION INTERVAL] Checking subscription status for user:",
+          { userId: user.id },
+        );
         await refreshSubscriptionStatus(user.id);
       } else if (user?.id) {
         console.error(
           "❌ [USER_ID DEBUG] Invalid user ID in subscription check interval:",
-          { userId: user.id, type: typeof user.id },
+          {
+            userId: user.id,
+            type: typeof user.id,
+            stringified: String(user.id),
+          },
         );
       }
     }, 30000); // Check every 30 seconds
