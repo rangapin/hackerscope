@@ -71,7 +71,6 @@ async function getSavedIdeasWithDetails(
       ? {
           code: authError.code,
           message: authError.message,
-          details: authError.details,
         }
       : null,
     requestEmail: userEmail,
@@ -117,7 +116,6 @@ async function getSavedIdeasWithDetails(
     console.error("❌ [406 DEBUG] Library Page - Error loading saved ideas:", {
       code: savedError.code,
       message: savedError.message,
-      details: savedError.details,
       hint: savedError.hint,
       userEmail,
       timestamp: new Date().toISOString(),
@@ -171,7 +169,6 @@ async function getSavedIdeasWithDetails(
       {
         code: generatedError.code,
         message: generatedError.message,
-        details: generatedError.details,
         hint: generatedError.hint,
         ideaIds,
         userEmail,
