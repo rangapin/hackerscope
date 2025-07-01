@@ -271,11 +271,10 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
     setIsGenerating(false);
     setShowFullScreenLoading(false);
 
-    // Add a delay to ensure database transaction is fully committed and then redirect
+    // Add a delay to ensure database transaction is fully committed and then force refresh
     setTimeout(() => {
-      // Use router.push with refresh to ensure fresh data
-      router.push("/library");
-      router.refresh();
+      // Force a complete page reload to bypass all caching issues
+      window.location.reload();
     }, 2000);
   };
 
