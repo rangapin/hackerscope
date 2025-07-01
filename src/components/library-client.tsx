@@ -20,7 +20,7 @@ import { BookOpen, RefreshCw } from "lucide-react";
 // Terracotta pulsing dot loading animation
 function LoadingAnimation() {
   return (
-    <div className="flex justify-center items-center py-12">
+    <div className="flex items-center justify-center min-h-screen">
       <div
         className="w-4 h-4 bg-[#D4714B] rounded-full"
         style={{
