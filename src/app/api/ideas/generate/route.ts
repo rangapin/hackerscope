@@ -62,11 +62,16 @@ async function callExaAPI(query: string) {
 
   return pRetry(
     async () => {
+      const apiKey = process.env.EXA_API_KEY;
+      if (!apiKey) {
+        throw new Error("EXA API key is not configured");
+      }
+
       const response = await fetch("https://api.exa.ai/search", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": process.env.EXA_API_KEY,
+          "x-api-key": apiKey,
         },
         body: JSON.stringify({
           query: query.trim(),
