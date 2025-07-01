@@ -263,21 +263,21 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
       return;
     }
 
-    // Redirect to library and force a complete refresh
+    // Redirect to library with proper cache invalidation
     setIsGenerating(false);
     setShowFullScreenLoading(false);
 
-    // Add a longer delay to ensure database transaction is fully committed
-    await new Promise((resolve) => setTimeout(resolve, 2000));
+    // Add a delay to ensure database transaction is fully committed
+    await new Promise((resolve) => setTimeout(resolve, 1500));
 
-    // Force a complete page refresh with cache busting
-    const timestamp = Date.now();
-    window.location.href = `/library?t=${timestamp}`;
+    // Use Next.js router for proper navigation and cache invalidation
+    router.push("/library");
+    router.refresh();
 
-    // Fallback: if the above doesn't work, try a hard reload
+    // Additional cache busting as fallback
     setTimeout(() => {
-      window.location.reload();
-    }, 1000);
+      router.refresh();
+    }, 500);
   };
 
   const handleLike = () => {
