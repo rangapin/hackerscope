@@ -61,6 +61,15 @@ async function getSavedIdeasWithDetails(
 
   const supabase = await createClient();
 
+  // Debug: Check if the Supabase client was created with proper API key
+  console.log(
+    "🔍 [API KEY DEBUG] Supabase client in getSavedIdeasWithDetails:",
+    {
+      clientExists: !!supabase,
+      timestamp: new Date().toISOString(),
+    },
+  );
+
   // Check authentication and JWT token
   const { data: authUser, error: authError } = await supabase.auth.getUser();
   console.log("🔍 [406 DEBUG] Library Page - Auth check:", {
@@ -154,6 +163,7 @@ async function getSavedIdeasWithDetails(
     ideaIds,
     ideaIdsCount: ideaIds.length,
     userEmail,
+    supabaseClientExists: !!supabase,
     timestamp: new Date().toISOString(),
   });
 
@@ -225,6 +235,15 @@ export default async function LibraryPage() {
   });
 
   const supabase = await createClient();
+
+  // Debug: Check if the Supabase client was created with proper API key
+  console.log(
+    "🔍 [API KEY DEBUG] Supabase client in LibraryPage main function:",
+    {
+      clientExists: !!supabase,
+      timestamp: new Date().toISOString(),
+    },
+  );
 
   const {
     data: { user },

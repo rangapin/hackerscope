@@ -141,6 +141,12 @@ export const checkUserSubscription = async (userId: string) => {
 
   const supabase = await createClient();
 
+  // Debug: Check if the Supabase client was created with proper API key
+  console.log("🔍 [API KEY DEBUG] Supabase client in checkUserSubscription:", {
+    clientExists: !!supabase,
+    timestamp: new Date().toISOString(),
+  });
+
   // Authentication check with detailed logging
   const {
     data: { user },
@@ -169,6 +175,11 @@ export const checkUserSubscription = async (userId: string) => {
   }
 
   console.log("🔍 [CACHE DEBUG] Fetching subscription data from Supabase:", {
+    userId,
+    timestamp: new Date().toISOString(),
+  });
+
+  console.log("🔍 [API KEY DEBUG] About to query subscriptions table:", {
     userId,
     timestamp: new Date().toISOString(),
   });

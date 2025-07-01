@@ -22,6 +22,18 @@ import type { User } from "@supabase/supabase-js";
 async function checkUserHasFreeIdea(userEmail: string) {
   const supabase = createClient();
 
+  // Debug: Check if the Supabase client was created with proper API key
+  console.log("🔍 [API KEY DEBUG] Supabase client in Dashboard component:", {
+    clientExists: !!supabase,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Debug: Check if the Supabase client was created with proper API key
+  console.log("🔍 [API KEY DEBUG] Supabase client in checkUserHasFreeIdea:", {
+    clientExists: !!supabase,
+    timestamp: new Date().toISOString(),
+  });
+
   // Check authentication and JWT token
   const { data: authUser, error: authError } = await supabase.auth.getUser();
   console.log("🔍 [406 DEBUG] Dashboard - checkUserHasFreeIdea auth check:", {
@@ -93,6 +105,15 @@ async function getSavedIdeasWithDetails(
   userEmail: string,
 ): Promise<(SavedIdea & { generated_idea?: GeneratedIdea })[]> {
   const supabase = createClient();
+
+  // Debug: Check if the Supabase client was created with proper API key
+  console.log(
+    "🔍 [API KEY DEBUG] Supabase client in getSavedIdeasWithDetails (Dashboard):",
+    {
+      clientExists: !!supabase,
+      timestamp: new Date().toISOString(),
+    },
+  );
 
   // Check authentication and JWT token
   const { data: authUser, error: authError } = await supabase.auth.getUser();

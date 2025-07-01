@@ -93,6 +93,12 @@ export function LibraryClient({
   const router = useRouter();
   const supabase = createClient();
 
+  // Debug: Check if the Supabase client was created with proper API key
+  console.log("🔍 [API KEY DEBUG] Supabase client in LibraryClient:", {
+    clientExists: !!supabase,
+    timestamp: new Date().toISOString(),
+  });
+
   const handleViewDetails = (idea: SavedIdea) => {
     setSelectedIdea(idea);
     setShowDetailsModal(true);
@@ -141,6 +147,7 @@ export function LibraryClient({
         "🔍 [API KEY DEBUG] LibraryClient - About to query saved_ideas:",
         {
           userEmail: user.email,
+          supabaseClientExists: !!supabase,
           timestamp: new Date().toISOString(),
         },
       );
@@ -202,6 +209,7 @@ export function LibraryClient({
           ideaIds,
           ideaIdsCount: ideaIds.length,
           userEmail: user.email,
+          supabaseClientExists: !!supabase,
           timestamp: new Date().toISOString(),
         },
       );

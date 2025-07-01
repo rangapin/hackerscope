@@ -412,6 +412,13 @@ export async function POST(request: NextRequest) {
   try {
     // Authentication check
     const supabase = await createClient();
+
+    // Debug: Check if the Supabase client was created with proper API key
+    console.log("🔍 [API KEY DEBUG] Supabase client in generate route:", {
+      clientExists: !!supabase,
+      timestamp: new Date().toISOString(),
+    });
+
     const {
       data: { user },
       error: authError,
