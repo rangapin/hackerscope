@@ -32,7 +32,6 @@ async function checkUserHasFreeIdea(userEmail: string) {
       ? {
           code: authError.code,
           message: authError.message,
-          details: authError.details,
         }
       : null,
     requestEmail: userEmail,
@@ -50,7 +49,6 @@ async function checkUserHasFreeIdea(userEmail: string) {
     console.error("❌ [406 DEBUG] Dashboard - checkUserHasFreeIdea error:", {
       code: error.code,
       message: error.message,
-      details: error.details,
       hint: error.hint,
       userEmail,
       timestamp: new Date().toISOString(),
@@ -108,7 +106,6 @@ async function getSavedIdeasWithDetails(
         ? {
             code: authError.code,
             message: authError.message,
-            details: authError.details,
           }
         : null,
       requestEmail: userEmail,
@@ -127,7 +124,6 @@ async function getSavedIdeasWithDetails(
     console.error("❌ [406 DEBUG] Dashboard - Error loading saved ideas:", {
       code: savedError.code,
       message: savedError.message,
-      details: savedError.details,
       hint: savedError.hint,
       userEmail,
       timestamp: new Date().toISOString(),
@@ -150,7 +146,6 @@ async function getSavedIdeasWithDetails(
     console.error("❌ [406 DEBUG] Dashboard - Error loading generated ideas:", {
       code: generatedError.code,
       message: generatedError.message,
-      details: generatedError.details,
       hint: generatedError.hint,
       ideaIds,
       userEmail,
