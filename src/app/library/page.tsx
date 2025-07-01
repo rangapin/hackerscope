@@ -19,14 +19,17 @@ export const revalidate = 0;
 // Disable all caching layers
 export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
+// Prevent static optimization
+export const dynamicParams = true;
 
 // Add cache headers to prevent browser caching
 export async function generateMetadata() {
   return {
     other: {
-      "Cache-Control": "no-cache, no-store, must-revalidate",
+      "Cache-Control": "no-cache, no-store, must-revalidate, max-age=0",
       Pragma: "no-cache",
       Expires: "0",
+      "Surrogate-Control": "no-store",
     },
   };
 }
@@ -148,7 +151,17 @@ async function getSavedIdeasWithDetails(
     .select("*")
     .eq("user_email", userEmail)
     .order("created_at", { ascending: false })
-    .limit(1000); // Add explicit limit to prevent caching issues
+    .limit(1000)
+    .maybeSingle() // Force fresh query
+    .then(async () => {
+      // Re-query to ensure fresh data
+      return await supabase
+        .from("saved_ideas")
+        .select("*")
+        .eq("user_email", userEmail)
+        .order("created_at", { ascending: false })
+        .limit(1000);
+    });
 
   if (savedError) {
     console.error("❌ [406 DEBUG] Library Page - Error loading saved ideas:", {
