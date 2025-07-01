@@ -288,8 +288,17 @@ export default function IdeaGenerator({
       // Add a small delay to ensure the idea is fully saved
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Automatically refresh the page to show the new idea
-      window.location.reload();
+      // Dispatch event to notify other components that an idea was generated
+      window.dispatchEvent(new CustomEvent("ideaGenerated"));
+
+      // Call the onIdeaGenerated callback if provided
+      if (onIdeaGenerated) {
+        onIdeaGenerated();
+      }
+
+      // Hide loading states
+      setIsGenerating(false);
+      setShowFullScreenLoading(false);
     } catch (error) {
       console.error("Error generating idea:", error);
       toast({

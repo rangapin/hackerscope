@@ -140,9 +140,9 @@ export function FreeIdeaDisplay({
   const [supabase] = useState(() => createClient());
 
   // Check if user already has a free idea stored with race condition protection
-  const checkExistingFreeIdea = async () => {
-    // Skip background fetching if idea generation just completed
-    if (shouldDisableBackgroundFetching()) {
+  const checkExistingFreeIdea = async (forceLoad = false) => {
+    // Skip background fetching if idea generation just completed, UNLESS this is a forced load after generation
+    if (!forceLoad && shouldDisableBackgroundFetching()) {
       console.log(
         "🚫 [BACKGROUND FETCH DISABLED] FreeIdeaDisplay - Skipping checkExistingFreeIdea - idea generation in progress or recently completed",
       );
@@ -290,9 +290,12 @@ export function FreeIdeaDisplay({
         setShowFullScreenLoading(false);
       }, 500);
 
-      // Force a complete page reload to bypass all caching and state management issues
-      setTimeout(() => {
-        window.location.reload();
+      // Instead of page reload, directly load the new idea data
+      setTimeout(async () => {
+        setShowFullScreenLoading(false);
+        setIsGenerating(false);
+        // Force load the newly generated idea, bypassing the background fetch prevention
+        await checkExistingFreeIdea(true);
       }, 1000);
     } catch (err) {
       console.error("Error generating free idea:", err);
@@ -307,6 +310,23 @@ export function FreeIdeaDisplay({
   useEffect(() => {
     checkExistingFreeIdea();
   }, [userEmail]);
+
+  // Listen for idea generation completion to refresh the display
+  useEffect(() => {
+    const handleIdeaGenerated = async () => {
+      console.log(
+        "🎉 [IDEA GENERATED] FreeIdeaDisplay - Refreshing idea display after generation",
+      );
+      // Small delay to ensure database has been updated
+      setTimeout(async () => {
+        await checkExistingFreeIdea(true);
+      }, 500);
+    };
+
+    window.addEventListener("ideaGenerated", handleIdeaGenerated);
+    return () =>
+      window.removeEventListener("ideaGenerated", handleIdeaGenerated);
+  }, []);
 
   if (isLoading) {
     return (
