@@ -40,35 +40,47 @@ async function checkUserHasFreeIdea(userEmail: string, supabaseClient?: any) {
 
   try {
     // Check authentication and JWT token
-    const { data: authUser, error: authError } = await supabase.auth.getUser();
-    console.log("🔍 [406 DEBUG] Dashboard - checkUserHasFreeIdea auth check:", {
-      hasUser: !!authUser.user,
-      userId: authUser.user?.id,
-      userEmail: authUser.user?.email,
-      authError: authError
-        ? {
-            code: authError.code,
-            message: authError.message,
-          }
-        : null,
-      requestEmail: userEmail,
-      timestamp: new Date().toISOString(),
-    });
+    const { data: authData, error: authError } = await supabase.auth.getUser();
 
-    // If auth fails, return false but don't throw
-    if (authError || !authUser.user) {
+    if (authError) {
       console.warn(
-        "⚠️ [RACE CONDITION FIX] Auth failed in checkUserHasFreeIdea, returning false to preserve UI state",
+        "⚠️ [RACE CONDITION FIX] Auth error in checkUserHasFreeIdea, returning false to preserve UI state:",
+        authError,
       );
       return false;
     }
 
+    if (!authData || !authData.user) {
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] No user data in checkUserHasFreeIdea, returning false to preserve UI state:",
+        authData,
+      );
+      return false;
+    }
+
+    const authUser = authData.user;
+    if (!authUser.id) {
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] User ID missing in checkUserHasFreeIdea, returning false to preserve UI state:",
+        authUser,
+      );
+      return false;
+    }
+
+    console.log("🔍 [406 DEBUG] Dashboard - checkUserHasFreeIdea auth check:", {
+      hasUser: !!authUser,
+      userId: authUser.id,
+      userEmail: authUser.email,
+      requestEmail: userEmail,
+      timestamp: new Date().toISOString(),
+    });
+
     // Verify email matches authenticated user
-    if (authUser.user.email !== userEmail) {
+    if (authUser.email !== userEmail) {
       console.error(
         "❌ [USER_ID DEBUG] Email mismatch in checkUserHasFreeIdea:",
         {
-          authEmail: authUser.user.email,
+          authEmail: authUser.email,
           requestEmail: userEmail,
         },
       );
@@ -169,38 +181,50 @@ async function getSavedIdeasWithDetails(
 
   try {
     // Check authentication and JWT token
-    const { data: authUser, error: authError } = await supabase.auth.getUser();
+    const { data: authData, error: authError } = await supabase.auth.getUser();
+
+    if (authError) {
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] Auth error in getSavedIdeasWithDetails, returning empty array to preserve UI state:",
+        authError,
+      );
+      return [];
+    }
+
+    if (!authData || !authData.user) {
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] No user data in getSavedIdeasWithDetails, returning empty array to preserve UI state:",
+        authData,
+      );
+      return [];
+    }
+
+    const authUser = authData.user;
+    if (!authUser.id) {
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] User ID missing in getSavedIdeasWithDetails, returning empty array to preserve UI state:",
+        authUser,
+      );
+      return [];
+    }
+
     console.log(
       "🔍 [406 DEBUG] Dashboard - getSavedIdeasWithDetails auth check:",
       {
-        hasUser: !!authUser.user,
-        userId: authUser.user?.id,
-        userEmail: authUser.user?.email,
-        authError: authError
-          ? {
-              code: authError.code,
-              message: authError.message,
-            }
-          : null,
+        hasUser: !!authUser,
+        userId: authUser.id,
+        userEmail: authUser.email,
         requestEmail: userEmail,
         timestamp: new Date().toISOString(),
       },
     );
 
-    // If auth fails, return empty array but don't throw
-    if (authError || !authUser.user) {
-      console.warn(
-        "⚠️ [RACE CONDITION FIX] Auth failed in getSavedIdeasWithDetails, returning empty array to preserve UI state",
-      );
-      return [];
-    }
-
     // Verify email matches authenticated user
-    if (authUser.user.email !== userEmail) {
+    if (authUser.email !== userEmail) {
       console.error(
         "❌ [USER_ID DEBUG] Email mismatch in getSavedIdeasWithDetails:",
         {
-          authEmail: authUser.user.email,
+          authEmail: authUser.email,
           requestEmail: userEmail,
         },
       );
@@ -337,11 +361,24 @@ export default function Dashboard({
   useEffect(() => {
     async function loadUserData() {
       try {
-        const {
-          data: { user },
-        } = await supabase.auth.getUser();
+        const { data: authData, error: authError } =
+          await supabase.auth.getUser();
 
-        if (!user) {
+        if (authError) {
+          console.error("Auth error in loadUserData:", authError);
+          router.push("/sign-in");
+          return;
+        }
+
+        if (!authData || !authData.user) {
+          console.error("No user data in loadUserData:", authData);
+          router.push("/sign-in");
+          return;
+        }
+
+        const user = authData.user;
+        if (!user.id) {
+          console.error("User ID missing in loadUserData:", user);
           router.push("/sign-in");
           return;
         }

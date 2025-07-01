@@ -131,12 +131,10 @@ export function LibraryClient({
       );
 
       setIsRefreshing(true);
-      const {
-        data: { user },
-        error: authError,
-      } = await supabase.auth.getUser();
+      const { data: authData, error: authError } =
+        await supabase.auth.getUser();
 
-      if (authError || !user) {
+      if (authError) {
         console.error(
           "❌ [USER_ID DEBUG] LibraryClient - Auth error in refresh:",
           authError,
@@ -144,16 +142,27 @@ export function LibraryClient({
         return;
       }
 
+      if (!authData || !authData.user) {
+        console.error(
+          "❌ [USER_ID DEBUG] LibraryClient - No user data in refresh:",
+          authData,
+        );
+        return;
+      }
+
+      const user = authData.user;
       if (!user.email) {
         console.error(
-          "❌ [USER_ID DEBUG] LibraryClient - No user email found in refresh",
+          "❌ [USER_ID DEBUG] LibraryClient - No user email found in refresh:",
+          user,
         );
         return;
       }
 
       if (!user.id) {
         console.error(
-          "❌ [USER_ID DEBUG] LibraryClient - No user ID found in refresh",
+          "❌ [USER_ID DEBUG] LibraryClient - No user ID found in refresh:",
+          user,
         );
         return;
       }
@@ -189,17 +198,19 @@ export function LibraryClient({
       );
 
       // CRITICAL DEBUG: Compare client configurations
-      const { data: currentSession } = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
       console.log(
         "🔍 [CLIENT CONFIG DEBUG] LibraryClient - Fetching operation client config:",
         {
           clientType: "browser-side",
           context: "client component",
           authMethod: "browser-side auth.getUser()",
-          hasAccessToken: currentSession.session?.access_token
+          hasAccessToken: sessionData?.session?.access_token
             ? "[PRESENT]"
             : "[MISSING]",
-          tokenType: currentSession.session?.token_type,
+          tokenType: sessionData?.session?.token_type,
+          sessionError: sessionError,
           userFromAuth: {
             id: user.id,
             email: user.email,

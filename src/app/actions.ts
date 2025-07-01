@@ -150,31 +150,53 @@ export const checkUserSubscription = async (userId: string) => {
   const supabase = await createClient();
 
   // Authentication check with detailed logging
-  const {
-    data: { user },
-    error: authError,
-  } = await supabase.auth.getUser();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
+
+  if (authError) {
+    console.error("❌ [AUTH DEBUG] Auth error in checkUserSubscription:", {
+      authError: {
+        code: authError.code,
+        message: authError.message,
+      },
+      requestedUserId: userId,
+      timestamp: new Date().toISOString(),
+    });
+    return false;
+  }
+
+  if (!authData || !authData.user) {
+    console.error("❌ [AUTH DEBUG] No user data in checkUserSubscription:", {
+      authData,
+      requestedUserId: userId,
+      timestamp: new Date().toISOString(),
+    });
+    return false;
+  }
+
+  const user = authData.user;
+  if (!user.id) {
+    console.error("❌ [AUTH DEBUG] User ID missing in checkUserSubscription:", {
+      user,
+      requestedUserId: userId,
+      timestamp: new Date().toISOString(),
+    });
+    return false;
+  }
 
   console.log("🔍 [AUTH DEBUG] Auth check in checkUserSubscription:", {
     hasUser: !!user,
-    userId: user?.id,
-    authError: authError
-      ? {
-          code: authError.code,
-          message: authError.message,
-        }
-      : null,
+    userId: user.id,
+    authError: null,
     requestedUserId: userId,
     timestamp: new Date().toISOString(),
   });
 
-  if (authError || !user || user.id !== userId) {
+  if (user.id !== userId) {
     console.error("❌ [AUTH DEBUG] Unauthorized subscription check attempt:", {
-      authError,
       hasUser: !!user,
-      userIdMatch: user?.id === userId,
+      userIdMatch: false,
       providedUserId: userId,
-      actualUserId: user?.id,
+      actualUserId: user.id,
     });
     return false;
   }

@@ -321,23 +321,34 @@ Return JSON format:
 // Check user subscription status
 async function checkUserLimits(email: string, supabase: any) {
   // First, get the authenticated user to ensure we have a valid user_id
-  const { data: authUser, error: authError } = await supabase.auth.getUser();
+  const { data: authData, error: authError } = await supabase.auth.getUser();
 
-  if (authError || !authUser.user) {
+  if (authError) {
     console.error("Authentication error in checkUserLimits:", authError);
     throw new Error("Authentication required");
   }
 
+  if (!authData || !authData.user) {
+    console.error("No user data in checkUserLimits:", authData);
+    throw new Error("Authentication required");
+  }
+
+  const user = authData.user;
+  if (!user.id) {
+    console.error("User ID is missing in checkUserLimits:", user);
+    throw new Error("User ID not found");
+  }
+
   // Verify the email matches the authenticated user
-  if (authUser.user.email !== email) {
+  if (user.email !== email) {
     console.error("Email mismatch in checkUserLimits:", {
-      authEmail: authUser.user.email,
+      authEmail: user.email,
       requestEmail: email,
     });
     throw new Error("Email verification failed");
   }
 
-  const userId = authUser.user.id;
+  const userId = user.id;
   console.log("🔍 [USER_ID DEBUG] checkUserLimits using user_id:", userId);
 
   // Check if user has active subscription using the authenticated user's ID
@@ -597,19 +608,10 @@ export async function POST(request: NextRequest) {
     let savedIdea;
     try {
       // Verify user authentication before database operation
-      const { data: authUser, error: authCheckError } =
+      const { data: authData, error: authCheckError } =
         await supabase.auth.getUser();
 
-      console.log("🔍 [406 DEBUG] Auth verification result:", {
-        hasUser: !!authUser.user,
-        userId: authUser.user?.id,
-        userEmail: authUser.user?.email,
-        authError: authCheckError,
-        requestEmail: email,
-        timestamp: new Date().toISOString(),
-      });
-
-      if (authCheckError || !authUser.user) {
+      if (authCheckError) {
         console.error("❌ [406 DEBUG] Authentication verification failed:", {
           authCheckError,
           errorCode: authCheckError?.code,
@@ -622,12 +624,43 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      if (!authData || !authData.user) {
+        console.error("❌ [406 DEBUG] No user data in auth verification:", {
+          authData,
+          timestamp: new Date().toISOString(),
+        });
+        return NextResponse.json(
+          { error: "Authentication required for database operation" },
+          { status: 401 },
+        );
+      }
+
+      const authUser = authData.user;
+      if (!authUser.id) {
+        console.error("❌ [406 DEBUG] User ID missing in auth verification:", {
+          authUser,
+          timestamp: new Date().toISOString(),
+        });
+        return NextResponse.json(
+          { error: "User ID not found" },
+          { status: 401 },
+        );
+      }
+
+      console.log("🔍 [406 DEBUG] Auth verification result:", {
+        hasUser: !!authUser,
+        userId: authUser.id,
+        userEmail: authUser.email,
+        requestEmail: email,
+        timestamp: new Date().toISOString(),
+      });
+
       // Ensure the authenticated user's email matches the request email
-      if (authUser.user.email !== email) {
+      if (authUser.email !== email) {
         console.error("❌ [406 DEBUG] Email mismatch in database operation", {
-          authEmail: authUser.user.email,
+          authEmail: authUser.email,
           requestEmail: email,
-          userId: authUser.user.id,
+          userId: authUser.id,
           timestamp: new Date().toISOString(),
         });
         return NextResponse.json(
@@ -637,24 +670,25 @@ export async function POST(request: NextRequest) {
       }
 
       // Log JWT token information for debugging
-      const session = await supabase.auth.getSession();
+      const { data: sessionData, error: sessionError } =
+        await supabase.auth.getSession();
       console.log("🔍 [406 DEBUG] JWT Session info:", {
-        hasSession: !!session.data.session,
-        accessToken: session.data.session?.access_token
+        hasSession: !!sessionData?.session,
+        accessToken: sessionData?.session?.access_token
           ? "[PRESENT]"
           : "[MISSING]",
-        refreshToken: session.data.session?.refresh_token
+        refreshToken: sessionData?.session?.refresh_token
           ? "[PRESENT]"
           : "[MISSING]",
-        expiresAt: session.data.session?.expires_at,
-        tokenType: session.data.session?.token_type,
-        sessionError: session.error,
+        expiresAt: sessionData?.session?.expires_at,
+        tokenType: sessionData?.session?.token_type,
+        sessionError: sessionError,
         timestamp: new Date().toISOString(),
       });
 
       console.log("🔄 [DEBUG] Attempting to save idea for user:", {
-        userId: authUser.user.id,
-        email: authUser.user.email,
+        userId: authUser.id,
+        email: authUser.email,
         timestamp: new Date().toISOString(),
       });
 
@@ -665,14 +699,14 @@ export async function POST(request: NextRequest) {
           clientType: "server-side",
           context: "API route",
           authMethod: "server-side auth.getUser()",
-          hasAccessToken: session.data.session?.access_token
+          hasAccessToken: sessionData?.session?.access_token
             ? "[PRESENT]"
             : "[MISSING]",
-          tokenType: session.data.session?.token_type,
+          tokenType: sessionData?.session?.token_type,
           userFromAuth: {
-            id: authUser.user.id,
-            email: authUser.user.email,
-            role: authUser.user.role,
+            id: authUser.id,
+            email: authUser.email,
+            role: authUser.role,
           },
           timestamp: new Date().toISOString(),
         },
