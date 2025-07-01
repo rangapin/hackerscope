@@ -270,8 +270,16 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
     // Add a delay to ensure database transaction is fully committed
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
-    // Force a hard navigation to ensure server-side data is fresh
-    window.location.href = "/library";
+    // Use Next.js router for better navigation
+    router.push("/library");
+    router.refresh();
+
+    // Fallback to hard navigation if needed
+    setTimeout(() => {
+      if (window.location.pathname !== "/library") {
+        window.location.href = "/library";
+      }
+    }, 2000);
   };
 
   const handleLike = () => {

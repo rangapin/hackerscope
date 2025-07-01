@@ -46,28 +46,46 @@ const anthropic = new Anthropic({
 
 // EXA API call with retry logic
 async function callExaAPI(query: string) {
+  // Skip EXA API if no API key is provided
+  if (!process.env.EXA_API_KEY) {
+    console.log("EXA API key not provided, skipping market research");
+    return {
+      results: [
+        {
+          title: "Market Research Data",
+          summary:
+            "General market trends and opportunities in the specified industry",
+        },
+      ],
+    };
+  }
+
   return pRetry(
     async () => {
       const response = await fetch("https://api.exa.ai/search", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "x-api-key": process.env.EXA_API_KEY || "",
+          "x-api-key": process.env.EXA_API_KEY,
         },
         body: JSON.stringify({
-          query,
+          query: query.trim(),
           type: "neural",
           useAutoprompt: true,
-          numResults: 10,
+          numResults: 5,
           contents: {
             text: true,
-            highlights: true,
             summary: true,
           },
         }),
       });
 
       if (!response.ok) {
+        const errorText = await response.text();
+        console.error(
+          `EXA API error: ${response.status} ${response.statusText}`,
+          errorText,
+        );
         throw new Error(
           `EXA API error: ${response.status} ${response.statusText}`,
         );
@@ -76,10 +94,10 @@ async function callExaAPI(query: string) {
       return response.json();
     },
     {
-      retries: 3,
+      retries: 2,
       factor: 2,
       minTimeout: 1000,
-      maxTimeout: 10000,
+      maxTimeout: 5000,
       onFailedAttempt: (error) => {
         console.log(
           `EXA API attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`,
@@ -442,10 +460,30 @@ export async function POST(request: NextRequest) {
     }
 
     // Step 1: Call EXA API for market research with sanitized inputs
-    const marketQuery = `startup opportunities ${sanitizedIndustry || ""} ${sanitizedPreferences || ""} market trends business ideas 2024`;
+    const marketQuery =
+      `startup opportunities ${sanitizedIndustry || "technology"} ${sanitizedPreferences || ""} market trends business ideas 2024`.trim();
 
     console.log("Calling EXA API for market research...");
-    const marketData = await callExaAPI(marketQuery);
+    let marketData;
+    try {
+      marketData = await callExaAPI(marketQuery);
+    } catch (exaError) {
+      console.error("EXA API failed, using fallback data:", exaError);
+      // Fallback market data if EXA API fails
+      marketData = {
+        results: [
+          {
+            title: "Market Research Insights",
+            summary: `Current market trends in ${sanitizedIndustry || "technology"} sector showing growth opportunities`,
+          },
+          {
+            title: "Industry Analysis",
+            summary:
+              "Emerging technologies and consumer behavior patterns indicate strong demand",
+          },
+        ],
+      };
+    }
 
     // Step 2: Pass market data to Claude for idea generation with sanitized inputs
     console.log("Processing market data with Claude AI...");
