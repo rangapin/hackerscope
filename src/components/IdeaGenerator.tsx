@@ -299,6 +299,12 @@ export default function IdeaGenerator({
       // Hide loading states
       setIsGenerating(false);
       setShowFullScreenLoading(false);
+
+      // Redirect to library with cache-busting parameter
+      setTimeout(() => {
+        const timestamp = Date.now();
+        router.push(`/library?refresh=${timestamp}`);
+      }, 500);
     } catch (error) {
       console.error("Error generating idea:", error);
       toast({

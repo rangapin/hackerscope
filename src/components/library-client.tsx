@@ -574,12 +574,19 @@ export function LibraryClient({
                 Your saved startup ideas will appear here.
               </p>
               <p className="text-sm text-gray-500 mb-6">
-                If you just generated an idea, please{" "}
+                If you just generated an idea and it's not showing up, try{" "}
+                <button
+                  onClick={refreshSavedIdeas}
+                  className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                >
+                  refreshing
+                </button>{" "}
+                or{" "}
                 <button
                   onClick={() => window.location.reload()}
                   className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
                 >
-                  refresh the page
+                  reload the page
                 </button>
               </p>
             </div>

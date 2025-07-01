@@ -59,11 +59,13 @@ interface GeneratedIdea {
 
 async function getSavedIdeasWithDetails(
   userEmail: string,
+  forceRefresh: boolean = false,
 ): Promise<(SavedIdea & { generated_idea?: GeneratedIdea })[]> {
   console.log(
     "🔄 [CACHE DEBUG] Library Page - Starting getSavedIdeasWithDetails:",
     {
       userEmail,
+      forceRefresh,
       timestamp: new Date().toISOString(),
       cacheHeaders: {
         "Cache-Control": "no-cache, no-store, must-revalidate",
@@ -256,12 +258,17 @@ async function getSavedIdeasWithDetails(
   return mergedIdeas;
 }
 
-export default async function LibraryPage() {
+export default async function LibraryPage({
+  searchParams,
+}: {
+  searchParams: { refresh?: string };
+}) {
   console.log("🚀 [CACHE DEBUG] Library Page - Component rendering started:", {
     timestamp: new Date().toISOString(),
     renderType: "force-dynamic",
     revalidate: 0,
     fetchCache: "force-no-store",
+    refreshParam: searchParams.refresh,
   });
 
   // Force dynamic rendering to prevent caching issues
@@ -311,7 +318,11 @@ export default async function LibraryPage() {
   });
 
   const isSubscribed = await checkUserSubscription(user.id);
-  const savedIdeas = await getSavedIdeasWithDetails(user.email || "");
+  const forceRefresh = !!searchParams.refresh;
+  const savedIdeas = await getSavedIdeasWithDetails(
+    user.email || "",
+    forceRefresh,
+  );
 
   console.log("📋 [CACHE DEBUG] Library Page - Final data before render:", {
     savedIdeasCount: savedIdeas.length,
