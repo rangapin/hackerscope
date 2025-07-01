@@ -198,6 +198,11 @@ export function LibraryClient({
             timestamp: new Date().toISOString(),
           },
         );
+
+        // Don't clear existing saved ideas if refresh fails - preserve UI state
+        console.warn(
+          "⚠️ [RACE CONDITION FIX] Saved ideas query failed, preserving existing UI state",
+        );
         return;
       }
 
@@ -260,6 +265,11 @@ export function LibraryClient({
             timestamp: new Date().toISOString(),
           },
         );
+
+        // Set saved ideas without generated details instead of failing completely
+        console.warn(
+          "⚠️ [RACE CONDITION FIX] Generated ideas query failed, showing saved ideas without full details",
+        );
         setSavedIdeas(savedIdeasData);
         return;
       }
@@ -296,9 +306,13 @@ export function LibraryClient({
       setSavedIdeas(mergedIdeas);
     } catch (error) {
       console.error(
-        "❌ [DEBUG] LibraryClient - Error refreshing saved ideas:",
+        "❌ [RACE CONDITION FIX] LibraryClient - Error refreshing saved ideas:",
         error,
       );
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] Refresh failed, preserving existing saved ideas state",
+      );
+      // Don't clear existing saved ideas on error - preserve UI state
     } finally {
       setIsRefreshing(false);
       console.log("🏁 [DEBUG] LibraryClient - refreshSavedIdeas completed:", {

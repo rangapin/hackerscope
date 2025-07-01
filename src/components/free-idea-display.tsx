@@ -135,7 +135,7 @@ export function FreeIdeaDisplay({
   const [showFullScreenLoading, setShowFullScreenLoading] = useState(false);
   const [supabase] = useState(() => createClient());
 
-  // Check if user already has a free idea stored
+  // Check if user already has a free idea stored with race condition protection
   const checkExistingFreeIdea = async () => {
     try {
       const { data, error } = await supabase
@@ -148,7 +148,25 @@ export function FreeIdeaDisplay({
 
       if (error && error.code !== "PGRST116") {
         // PGRST116 is "no rows returned", which is expected for new users
-        throw error;
+        console.error(
+          "❌ [RACE CONDITION FIX] Error in checkExistingFreeIdea:",
+          {
+            code: error.code,
+            message: error.message,
+            userEmail,
+            timestamp: new Date().toISOString(),
+          },
+        );
+
+        // Don't set error state if we already have a free idea displayed
+        if (!freeIdea) {
+          setError("Failed to load your free idea");
+        } else {
+          console.warn(
+            "⚠️ [RACE CONDITION FIX] Query failed but preserving existing free idea display",
+          );
+        }
+        return;
       }
 
       if (data) {
@@ -169,10 +187,23 @@ export function FreeIdeaDisplay({
           },
         };
         setFreeIdea(ideaData);
+        // Clear any previous error if we successfully loaded data
+        setError(null);
       }
     } catch (err) {
-      console.error("Error checking existing free idea:", err);
-      setError("Failed to load your free idea");
+      console.error(
+        "❌ [RACE CONDITION FIX] Exception in checkExistingFreeIdea:",
+        err,
+      );
+
+      // Don't set error state if we already have a free idea displayed
+      if (!freeIdea) {
+        setError("Failed to load your free idea");
+      } else {
+        console.warn(
+          "⚠️ [RACE CONDITION FIX] Exception occurred but preserving existing free idea display",
+        );
+      }
     } finally {
       setIsLoading(false);
     }

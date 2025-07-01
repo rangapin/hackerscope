@@ -29,47 +29,68 @@ async function checkUserHasFreeIdea(userEmail: string, supabaseClient?: any) {
     timestamp: new Date().toISOString(),
   });
 
-  // Check authentication and JWT token
-  const { data: authUser, error: authError } = await supabase.auth.getUser();
-  console.log("🔍 [406 DEBUG] Dashboard - checkUserHasFreeIdea auth check:", {
-    hasUser: !!authUser.user,
-    userId: authUser.user?.id,
-    userEmail: authUser.user?.email,
-    authError: authError
-      ? {
-          code: authError.code,
-          message: authError.message,
-        }
-      : null,
-    requestEmail: userEmail,
-    timestamp: new Date().toISOString(),
-  });
+  try {
+    // Check authentication and JWT token
+    const { data: authUser, error: authError } = await supabase.auth.getUser();
+    console.log("🔍 [406 DEBUG] Dashboard - checkUserHasFreeIdea auth check:", {
+      hasUser: !!authUser.user,
+      userId: authUser.user?.id,
+      userEmail: authUser.user?.email,
+      authError: authError
+        ? {
+            code: authError.code,
+            message: authError.message,
+          }
+        : null,
+      requestEmail: userEmail,
+      timestamp: new Date().toISOString(),
+    });
 
-  const { data, error } = await supabase
-    .from("generated_ideas")
-    .select("id")
-    .eq("email", userEmail)
-    .limit(1)
-    .single();
+    // If auth fails, return false but don't throw
+    if (authError || !authUser.user) {
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] Auth failed in checkUserHasFreeIdea, returning false to preserve UI state",
+      );
+      return false;
+    }
 
-  if (error && error.code !== "PGRST116") {
-    console.error("❌ [406 DEBUG] Dashboard - checkUserHasFreeIdea error:", {
-      code: error.code,
-      message: error.message,
-      hint: error.hint,
+    const { data, error } = await supabase
+      .from("generated_ideas")
+      .select("id")
+      .eq("email", userEmail)
+      .limit(1)
+      .single();
+
+    if (error && error.code !== "PGRST116") {
+      console.error("❌ [406 DEBUG] Dashboard - checkUserHasFreeIdea error:", {
+        code: error.code,
+        message: error.message,
+        hint: error.hint,
+        userEmail,
+        timestamp: new Date().toISOString(),
+      });
+      // Return false instead of throwing to prevent UI state clearing
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] Query failed in checkUserHasFreeIdea, returning false to preserve UI state",
+      );
+      return false;
+    }
+
+    console.log("✅ [DEBUG] Dashboard - checkUserHasFreeIdea result:", {
+      hasData: !!data,
       userEmail,
       timestamp: new Date().toISOString(),
     });
+
+    return !!data;
+  } catch (error) {
+    console.error(
+      "❌ [RACE CONDITION FIX] Exception in checkUserHasFreeIdea:",
+      error,
+    );
+    // Return false instead of throwing to prevent UI state clearing
     return false;
   }
-
-  console.log("✅ [DEBUG] Dashboard - checkUserHasFreeIdea result:", {
-    hasData: !!data,
-    userEmail,
-    timestamp: new Date().toISOString(),
-  });
-
-  return !!data;
 }
 
 // Function to get saved ideas with details (from library page)
@@ -112,78 +133,106 @@ async function getSavedIdeasWithDetails(
     },
   );
 
-  // Check authentication and JWT token
-  const { data: authUser, error: authError } = await supabase.auth.getUser();
-  console.log(
-    "🔍 [406 DEBUG] Dashboard - getSavedIdeasWithDetails auth check:",
-    {
-      hasUser: !!authUser.user,
-      userId: authUser.user?.id,
-      userEmail: authUser.user?.email,
-      authError: authError
-        ? {
-            code: authError.code,
-            message: authError.message,
-          }
-        : null,
-      requestEmail: userEmail,
-      timestamp: new Date().toISOString(),
-    },
-  );
-
-  // Get saved ideas
-  const { data: savedIdeas, error: savedError } = await supabase
-    .from("saved_ideas")
-    .select("*")
-    .eq("user_email", userEmail)
-    .order("created_at", { ascending: false });
-
-  if (savedError) {
-    console.error("❌ [406 DEBUG] Dashboard - Error loading saved ideas:", {
-      code: savedError.code,
-      message: savedError.message,
-      hint: savedError.hint,
-      userEmail,
-      timestamp: new Date().toISOString(),
-    });
-    return [];
-  }
-
-  if (!savedIdeas || savedIdeas.length === 0) {
-    return [];
-  }
-
-  // Get the corresponding generated ideas for detailed information
-  const ideaIds = savedIdeas.map((idea: SavedIdea) => idea.idea_id);
-  const { data: generatedIdeas, error: generatedError } = await supabase
-    .from("generated_ideas")
-    .select("*")
-    .in("id", ideaIds);
-
-  if (generatedError) {
-    console.error("❌ [406 DEBUG] Dashboard - Error loading generated ideas:", {
-      code: generatedError.code,
-      message: generatedError.message,
-      hint: generatedError.hint,
-      ideaIds,
-      userEmail,
-      timestamp: new Date().toISOString(),
-    });
-    return savedIdeas;
-  }
-
-  // Merge the data
-  const mergedIdeas = savedIdeas.map((savedIdea: any) => {
-    const generatedIdea = generatedIdeas?.find(
-      (gi: any) => gi.id === savedIdea.idea_id,
+  try {
+    // Check authentication and JWT token
+    const { data: authUser, error: authError } = await supabase.auth.getUser();
+    console.log(
+      "🔍 [406 DEBUG] Dashboard - getSavedIdeasWithDetails auth check:",
+      {
+        hasUser: !!authUser.user,
+        userId: authUser.user?.id,
+        userEmail: authUser.user?.email,
+        authError: authError
+          ? {
+              code: authError.code,
+              message: authError.message,
+            }
+          : null,
+        requestEmail: userEmail,
+        timestamp: new Date().toISOString(),
+      },
     );
-    return {
-      ...savedIdea,
-      generated_idea: generatedIdea,
-    };
-  });
 
-  return mergedIdeas;
+    // If auth fails, return empty array but don't throw
+    if (authError || !authUser.user) {
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] Auth failed in getSavedIdeasWithDetails, returning empty array to preserve UI state",
+      );
+      return [];
+    }
+
+    // Get saved ideas
+    const { data: savedIdeas, error: savedError } = await supabase
+      .from("saved_ideas")
+      .select("*")
+      .eq("user_email", userEmail)
+      .order("created_at", { ascending: false });
+
+    if (savedError) {
+      console.error("❌ [406 DEBUG] Dashboard - Error loading saved ideas:", {
+        code: savedError.code,
+        message: savedError.message,
+        hint: savedError.hint,
+        userEmail,
+        timestamp: new Date().toISOString(),
+      });
+      // Return empty array instead of throwing to prevent UI state clearing
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] Saved ideas query failed, returning empty array to preserve UI state",
+      );
+      return [];
+    }
+
+    if (!savedIdeas || savedIdeas.length === 0) {
+      return [];
+    }
+
+    // Get the corresponding generated ideas for detailed information
+    const ideaIds = savedIdeas.map((idea: SavedIdea) => idea.idea_id);
+    const { data: generatedIdeas, error: generatedError } = await supabase
+      .from("generated_ideas")
+      .select("*")
+      .in("id", ideaIds);
+
+    if (generatedError) {
+      console.error(
+        "❌ [406 DEBUG] Dashboard - Error loading generated ideas:",
+        {
+          code: generatedError.code,
+          message: generatedError.message,
+          hint: generatedError.hint,
+          ideaIds,
+          userEmail,
+          timestamp: new Date().toISOString(),
+        },
+      );
+      // Return saved ideas without generated details instead of throwing
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] Generated ideas query failed, returning saved ideas without details to preserve UI state",
+      );
+      return savedIdeas;
+    }
+
+    // Merge the data
+    const mergedIdeas = savedIdeas.map((savedIdea: any) => {
+      const generatedIdea = generatedIdeas?.find(
+        (gi: any) => gi.id === savedIdea.idea_id,
+      );
+      return {
+        ...savedIdea,
+        generated_idea: generatedIdea,
+      };
+    });
+
+    return mergedIdeas;
+  } catch (error) {
+    console.error(
+      "❌ [RACE CONDITION FIX] Exception in getSavedIdeasWithDetails:",
+      error,
+    );
+    // Return empty array instead of throwing to prevent UI state clearing
+    return [];
+  }
 }
 
 export default function Dashboard({
@@ -207,15 +256,22 @@ export default function Dashboard({
     return client;
   }, []);
 
-  // Function to refresh subscription status
+  // Function to refresh subscription status with error handling to prevent UI clearing
   const refreshSubscriptionStatus = async (userId: string) => {
     try {
       const subscriptionStatus = await checkUserSubscription(userId);
       setIsSubscribed(subscriptionStatus);
       return subscriptionStatus;
     } catch (error) {
-      console.error("Error refreshing subscription status:", error);
-      return false;
+      console.error(
+        "❌ [RACE CONDITION FIX] Error refreshing subscription status:",
+        error,
+      );
+      console.warn(
+        "⚠️ [RACE CONDITION FIX] Subscription status refresh failed, preserving current state",
+      );
+      // Don't change the subscription state if refresh fails
+      return isSubscribed;
     }
   };
 
@@ -244,11 +300,23 @@ export default function Dashboard({
           setIsSubscribed(subscriptionStatus);
         }
 
-        const freeIdeaStatus = await checkUserHasFreeIdea(
-          user.email || "",
-          supabase,
-        );
-        setHasGeneratedFreeIdea(freeIdeaStatus);
+        // Check free idea status with error handling to prevent race condition
+        try {
+          const freeIdeaStatus = await checkUserHasFreeIdea(
+            user.email || "",
+            supabase,
+          );
+          setHasGeneratedFreeIdea(freeIdeaStatus);
+        } catch (error) {
+          console.error(
+            "❌ [RACE CONDITION FIX] Error checking free idea status:",
+            error,
+          );
+          console.warn(
+            "⚠️ [RACE CONDITION FIX] Free idea status check failed, preserving current state",
+          );
+          // Don't change the free idea state if check fails
+        }
       } catch (error) {
         console.error("Error loading user data:", error);
         router.push("/sign-in");
@@ -274,12 +342,23 @@ export default function Dashboard({
     const handleFocus = async () => {
       if (user?.id) {
         await refreshSubscriptionStatus(user.id);
-        // Also refresh free idea status
-        const freeIdeaStatus = await checkUserHasFreeIdea(
-          user.email || "",
-          supabase,
-        );
-        setHasGeneratedFreeIdea(freeIdeaStatus);
+        // Also refresh free idea status with error handling
+        try {
+          const freeIdeaStatus = await checkUserHasFreeIdea(
+            user.email || "",
+            supabase,
+          );
+          setHasGeneratedFreeIdea(freeIdeaStatus);
+        } catch (error) {
+          console.error(
+            "❌ [RACE CONDITION FIX] Error refreshing free idea status on focus:",
+            error,
+          );
+          console.warn(
+            "⚠️ [RACE CONDITION FIX] Free idea status refresh failed on focus, preserving current state",
+          );
+          // Don't change the free idea state if refresh fails
+        }
       }
     };
 
