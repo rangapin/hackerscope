@@ -31,6 +31,12 @@ export const createClient = async () => {
           }
         },
       },
+      global: {
+        headers: {
+          Accept: "application/json",
+          "Content-Type": "application/json",
+        },
+      },
     },
   );
 };

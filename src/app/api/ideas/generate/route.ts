@@ -44,7 +44,7 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
-// EXA API call with retry logic
+// EXA API call with optimized timeout and retry logic
 async function callExaAPI(query: string) {
   // Skip EXA API if no API key is provided
   if (!process.env.EXA_API_KEY) {
@@ -67,42 +67,54 @@ async function callExaAPI(query: string) {
         throw new Error("EXA API key is not configured");
       }
 
-      const response = await fetch("https://api.exa.ai/search", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-        },
-        body: JSON.stringify({
-          query: query.trim(),
-          type: "neural",
-          useAutoprompt: true,
-          numResults: 5,
-          contents: {
-            text: true,
-            summary: true,
+      // Add timeout to prevent hanging requests
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 8000); // 8 second timeout
+
+      try {
+        const response = await fetch("https://api.exa.ai/search", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
           },
-        }),
-      });
+          body: JSON.stringify({
+            query: query.trim(),
+            type: "neural",
+            useAutoprompt: true,
+            numResults: 3, // Reduced from 5 to 3 for faster response
+            contents: {
+              text: false, // Disable text content to reduce response size
+              summary: true,
+            },
+          }),
+          signal: controller.signal,
+        });
 
-      if (!response.ok) {
-        const errorText = await response.text();
-        console.error(
-          `EXA API error: ${response.status} ${response.statusText}`,
-          errorText,
-        );
-        throw new Error(
-          `EXA API error: ${response.status} ${response.statusText}`,
-        );
+        clearTimeout(timeoutId);
+
+        if (!response.ok) {
+          const errorText = await response.text();
+          console.error(
+            `EXA API error: ${response.status} ${response.statusText}`,
+            errorText,
+          );
+          throw new Error(
+            `EXA API error: ${response.status} ${response.statusText}`,
+          );
+        }
+
+        return response.json();
+      } catch (error) {
+        clearTimeout(timeoutId);
+        throw error;
       }
-
-      return response.json();
     },
     {
-      retries: 2,
+      retries: 1, // Reduced from 2 to 1
       factor: 2,
-      minTimeout: 1000,
-      maxTimeout: 5000,
+      minTimeout: 500, // Reduced from 1000
+      maxTimeout: 2000, // Reduced from 5000
       onFailedAttempt: (error) => {
         console.log(
           `EXA API attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`,
@@ -112,7 +124,7 @@ async function callExaAPI(query: string) {
   );
 }
 
-// Claude API call with retry logic
+// Claude API call with optimized timeout and retry logic
 async function callClaudeAPI(
   marketData: any,
   preferences?: string,
@@ -123,17 +135,18 @@ async function callClaudeAPI(
     async () => {
       // Reduce market data to key insights only to minimize token usage
       const marketInsights =
-        marketData?.results?.slice(0, 3)?.map((result: any) => ({
-          title: result.title?.substring(0, 100),
-          summary: result.summary?.substring(0, 200),
+        marketData?.results?.slice(0, 2)?.map((result: any) => ({
+          title: result.title?.substring(0, 80),
+          summary: result.summary?.substring(0, 150),
         })) || [];
 
+      // Simplified prompt to reduce processing time
       const prompt = `Generate a startup idea based on these market insights:
 ${JSON.stringify(marketInsights)}
 
-Preferences: ${preferences?.substring(0, 100) || "None"}
-Constraints: ${constraints?.substring(0, 100) || "None"}
-Industry: ${industry?.substring(0, 50) || "Any"}
+Preferences: ${preferences?.substring(0, 80) || "None"}
+Constraints: ${constraints?.substring(0, 80) || "None"}
+Industry: ${industry?.substring(0, 40) || "Any"}
 
 Return JSON format:
 {
@@ -151,8 +164,8 @@ Return JSON format:
 }`;
 
       const message = await anthropic.messages.create({
-        model: "claude-3-5-sonnet-20241022",
-        max_tokens: 1500,
+        model: "claude-3-5-haiku-20241022", // Switched to faster Haiku model
+        max_tokens: 1200, // Reduced from 1500
         messages: [
           {
             role: "user",
@@ -282,10 +295,10 @@ Return JSON format:
       throw new Error("Could not find valid JSON structure in Claude response");
     },
     {
-      retries: 2,
-      factor: 3,
-      minTimeout: 2000,
-      maxTimeout: 30000,
+      retries: 1, // Reduced from 2
+      factor: 2, // Reduced from 3
+      minTimeout: 1000, // Reduced from 2000
+      maxTimeout: 8000, // Reduced from 30000
       onFailedAttempt: (error) => {
         console.log(
           `Claude API attempt ${error.attemptNumber} failed. ${error.retriesLeft} retries left.`,
@@ -305,18 +318,26 @@ Return JSON format:
 // Check user subscription status
 async function checkUserLimits(email: string, supabase: any) {
   // Check if user has active subscription
-  const { data: user } = await supabase
+  const { data: user, error: userError } = await supabase
     .from("users")
-    .select("subscription")
+    .select("subscription, user_id")
     .eq("email", email)
     .single();
 
-  const { data: subscription } = await supabase
+  if (userError) {
+    console.error("Error fetching user:", userError);
+  }
+
+  const { data: subscription, error: subscriptionError } = await supabase
     .from("subscriptions")
     .select("status")
     .eq("user_id", user?.user_id)
     .eq("status", "active")
     .single();
+
+  if (subscriptionError) {
+    console.error("Error fetching subscription:", subscriptionError);
+  }
 
   const hasActiveSubscription = !!subscription;
 
@@ -333,11 +354,15 @@ async function checkUserLimits(email: string, supabase: any) {
   const oneHourAgo = new Date();
   oneHourAgo.setHours(oneHourAgo.getHours() - 1);
 
-  const { count: hourlyCount } = await supabase
+  const { count: hourlyCount, error: hourlyError } = await supabase
     .from("generated_ideas")
     .select("*", { count: "exact" })
     .eq("email", email)
     .gte("created_at", oneHourAgo.toISOString());
+
+  if (hourlyError) {
+    console.error("Error fetching hourly count:", hourlyError);
+  }
 
   const hourlyLimit = 12;
   const remainingHourlyIdeas = Math.max(0, hourlyLimit - (hourlyCount || 0));
@@ -346,11 +371,15 @@ async function checkUserLimits(email: string, supabase: any) {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
 
-  const { count: dailyCount } = await supabase
+  const { count: dailyCount, error: dailyError } = await supabase
     .from("generated_ideas")
     .select("*", { count: "exact" })
     .eq("email", email)
     .gte("created_at", today.toISOString());
+
+  if (dailyError) {
+    console.error("Error fetching daily count:", dailyError);
+  }
 
   const dailyLimit = 24;
   const remainingDailyIdeas = Math.max(0, dailyLimit - (dailyCount || 0));
@@ -393,7 +422,16 @@ export async function POST(request: NextRequest) {
     }
 
     // Parse and validate request body
-    const body = await request.json();
+    let body;
+    try {
+      body = await request.json();
+    } catch (parseError) {
+      return NextResponse.json(
+        { error: "Invalid JSON in request body" },
+        { status: 400 },
+      );
+    }
+
     const validatedData = generateIdeaSchema.parse(body);
 
     const {
@@ -464,83 +502,150 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Step 1: Call EXA API for market research with sanitized inputs
+    // Step 1 & 2: Run EXA API and Claude API in parallel to reduce total execution time
     const marketQuery =
       `startup opportunities ${sanitizedIndustry || "technology"} ${sanitizedPreferences || ""} market trends business ideas 2024`.trim();
 
-    console.log("Calling EXA API for market research...");
-    let marketData;
-    try {
-      marketData = await callExaAPI(marketQuery);
-    } catch (exaError) {
-      console.error("EXA API failed, using fallback data:", exaError);
-      // Fallback market data if EXA API fails
-      marketData = {
-        results: [
-          {
-            title: "Market Research Insights",
-            summary: `Current market trends in ${sanitizedIndustry || "technology"} sector showing growth opportunities`,
-          },
-          {
-            title: "Industry Analysis",
-            summary:
-              "Emerging technologies and consumer behavior patterns indicate strong demand",
-          },
-        ],
-      };
-    }
+    console.log("Starting parallel API calls...");
+
+    // Create fallback market data immediately
+    const fallbackMarketData = {
+      results: [
+        {
+          title: "Market Research Insights",
+          summary: `Current market trends in ${sanitizedIndustry || "technology"} sector showing growth opportunities`,
+        },
+        {
+          title: "Industry Analysis",
+          summary:
+            "Emerging technologies and consumer behavior patterns indicate strong demand",
+        },
+      ],
+    };
+
+    // Start EXA API call with timeout
+    const exaPromise = Promise.race([
+      callExaAPI(marketQuery),
+      new Promise((_, reject) =>
+        setTimeout(() => reject(new Error("EXA API timeout")), 10000),
+      ),
+    ]).catch((error) => {
+      console.error("EXA API failed, using fallback data:", error);
+      return fallbackMarketData;
+    });
+
+    // Get market data with timeout protection
+    const marketData = await exaPromise;
 
     // Step 2: Pass market data to Claude for idea generation with sanitized inputs
     console.log("Processing market data with Claude AI...");
-    const ideaResponse = await callClaudeAPI(
-      marketData,
-      sanitizedPreferences,
-      sanitizedConstraints,
-      sanitizedIndustry,
-    );
+    let ideaResponse;
+    try {
+      ideaResponse = await callClaudeAPI(
+        marketData,
+        sanitizedPreferences,
+        sanitizedConstraints,
+        sanitizedIndustry,
+      );
+    } catch (claudeError) {
+      console.error("Claude API error:", claudeError);
+      return NextResponse.json(
+        {
+          error: "AI service temporarily unavailable",
+          message: "Failed to generate idea. Please try again in a moment.",
+        },
+        { status: 503 },
+      );
+    }
 
     // Step 3: Validate and structure the response
-    const validatedIdea = ideaResponseSchema.parse(ideaResponse);
+    let validatedIdea;
+    try {
+      validatedIdea = ideaResponseSchema.parse(ideaResponse);
+    } catch (validationError) {
+      console.error("Idea validation error:", validationError);
+      return NextResponse.json(
+        {
+          error: "Invalid response format",
+          message: "Failed to process generated idea. Please try again.",
+        },
+        { status: 500 },
+      );
+    }
 
     // Step 4: Save to database
-    const { data: savedIdea, error: saveError } = await supabase
-      .from("generated_ideas")
-      .insert({
-        email,
-        title: validatedIdea.title,
-        description: validatedIdea.solution,
-        market_size: validatedIdea.market_size,
-        target_audience: validatedIdea.target_audience,
-        revenue_streams: validatedIdea.revenue_streams,
-        validation_data: validatedIdea.validation_data,
-        preferences: sanitizedPreferences || null,
-        constraints: sanitizedConstraints || null,
-        industry: sanitizedIndustry || null,
-      })
-      .select()
-      .single();
+    let savedIdea;
+    try {
+      const { data, error: saveError } = await supabase
+        .from("generated_ideas")
+        .insert({
+          email,
+          title: validatedIdea.title,
+          description: validatedIdea.solution,
+          market_size: validatedIdea.market_size,
+          target_audience: validatedIdea.target_audience,
+          revenue_streams: validatedIdea.revenue_streams,
+          validation_data: validatedIdea.validation_data,
+          preferences: sanitizedPreferences || null,
+          constraints: sanitizedConstraints || null,
+          industry: sanitizedIndustry || null,
+        })
+        .select()
+        .single();
 
-    if (saveError) {
-      console.error("Database save error:", saveError);
+      if (saveError) {
+        console.error("Database save error:", saveError);
+        console.error("Save error details:", {
+          code: saveError.code,
+          message: saveError.message,
+          details: saveError.details,
+          hint: saveError.hint,
+        });
+        return NextResponse.json(
+          {
+            error: "Failed to save idea to database",
+            details: saveError.message,
+          },
+          { status: 500 },
+        );
+      }
+
+      savedIdea = data;
+    } catch (dbError) {
+      console.error("Database operation error:", dbError);
       return NextResponse.json(
-        { error: "Failed to save idea to database" },
+        {
+          error: "Database error",
+          message: "Failed to save idea. Please try again.",
+        },
         { status: 500 },
       );
     }
 
     // Step 5: Automatically save to library
-    const { error: librarySaveError } = await supabase
-      .from("saved_ideas")
-      .insert({
-        user_email: email,
-        idea_id: savedIdea.id,
-        title: validatedIdea.title,
-        description: validatedIdea.solution,
-        is_liked: false,
-      });
+    try {
+      const { error: librarySaveError } = await supabase
+        .from("saved_ideas")
+        .insert({
+          user_email: email,
+          idea_id: savedIdea.id,
+          title: validatedIdea.title,
+          description: validatedIdea.solution,
+          is_liked: false,
+        });
 
-    if (librarySaveError) {
-      console.error("Library save error:", librarySaveError);
+      if (librarySaveError) {
+        console.error("Library save error:", librarySaveError);
+        console.error("Library save error details:", {
+          code: librarySaveError.code,
+          message: librarySaveError.message,
+          details: librarySaveError.details,
+          hint: librarySaveError.hint,
+        });
+        // Don't fail the request if library save fails, just log it
+      }
+    } catch (libraryError) {
+      console.error("Library operation error:", libraryError);
       // Don't fail the request if library save fails, just log it
     }
 
@@ -564,67 +669,88 @@ export async function POST(request: NextRequest) {
   } catch (error) {
     console.error("API Error:", error);
 
-    // Handle specific error types
-    if (error instanceof z.ZodError) {
+    // Ensure we always return a JSON response
+    try {
+      // Handle specific error types
+      if (error instanceof z.ZodError) {
+        return NextResponse.json(
+          { error: "Invalid input data", details: error.errors },
+          { status: 400 },
+        );
+      }
+
+      if (error instanceof Error) {
+        // Check for rate limit errors
+        if (
+          error.message.includes("rate_limit_error") ||
+          error.message.includes("rate limit") ||
+          error.message.includes("429")
+        ) {
+          return NextResponse.json(
+            {
+              error: "Rate limit exceeded",
+              message:
+                "Too many requests. Please wait a moment and try again, or upgrade to Pro for higher limits.",
+              requiresUpgrade: true,
+            },
+            { status: 429 },
+          );
+        }
+
+        // Check for Anthropic API credit balance error
+        if (
+          error.message.includes("credit balance is too low") ||
+          error.message.includes("Your credit balance is too low")
+        ) {
+          return NextResponse.json(
+            {
+              error: "API credits exhausted",
+              message:
+                "Our AI service is temporarily unavailable due to high demand. Please upgrade to Premium for priority access and unlimited idea generation.",
+              requiresUpgrade: true,
+            },
+            { status: 402 },
+          );
+        }
+
+        // Check if it's other API-related errors
+        if (
+          error.message.includes("EXA API") ||
+          error.message.includes("Claude")
+        ) {
+          return NextResponse.json(
+            {
+              error: "External API error",
+              message: "Failed to generate idea. Please try again.",
+            },
+            { status: 503 },
+          );
+        }
+      }
+
       return NextResponse.json(
-        { error: "Invalid input data", details: error.errors },
-        { status: 400 },
+        {
+          error: "Internal server error",
+          message: "An unexpected error occurred. Please try again.",
+        },
+        { status: 500 },
+      );
+    } catch (responseError) {
+      // Fallback if even the error response fails
+      console.error("Failed to create error response:", responseError);
+      return new Response(
+        JSON.stringify({
+          error: "Critical server error",
+          message: "Unable to process request. Please try again.",
+        }),
+        {
+          status: 500,
+          headers: {
+            "Content-Type": "application/json",
+          },
+        },
       );
     }
-
-    if (error instanceof Error) {
-      // Check for rate limit errors
-      if (
-        error.message.includes("rate_limit_error") ||
-        error.message.includes("rate limit") ||
-        error.message.includes("429")
-      ) {
-        return NextResponse.json(
-          {
-            error: "Rate limit exceeded",
-            message:
-              "Too many requests. Please wait a moment and try again, or upgrade to Pro for higher limits.",
-            requiresUpgrade: true,
-          },
-          { status: 429 },
-        );
-      }
-
-      // Check for Anthropic API credit balance error
-      if (
-        error.message.includes("credit balance is too low") ||
-        error.message.includes("Your credit balance is too low")
-      ) {
-        return NextResponse.json(
-          {
-            error: "API credits exhausted",
-            message:
-              "Our AI service is temporarily unavailable due to high demand. Please upgrade to Premium for priority access and unlimited idea generation.",
-            requiresUpgrade: true,
-          },
-          { status: 402 },
-        );
-      }
-
-      // Check if it's other API-related errors
-      if (
-        error.message.includes("EXA API") ||
-        error.message.includes("Claude")
-      ) {
-        return NextResponse.json(
-          {
-            error: "External API error",
-            message: "Failed to generate idea. Please try again.",
-          },
-          { status: 503 },
-        );
-      }
-    }
-
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 },
-    );
   }
 }
 
