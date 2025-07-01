@@ -105,6 +105,8 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
 
   // Try to get user information
   let userId = subscription.metadata?.user_id || subscription.metadata?.userId;
+  let userEmail = null;
+
   if (!userId) {
     try {
       const customer = await stripe.customers.retrieve(subscription.customer);
@@ -114,6 +116,9 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
         throw new Error("Customer not found or deleted");
       }
 
+      userEmail = customer.email;
+
+      // First try to find user in public.users
       const { data: userData } = await supabaseClient
         .from("users")
         .select("user_id")
@@ -121,8 +126,67 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
         .single();
 
       userId = userData?.user_id;
+
+      // If not found in public.users, try to find in auth.users and create public.users record
       if (!userId) {
-        throw new Error("User not found");
+        console.log(
+          "User not found in public.users, checking auth.users for:",
+          customer.email,
+        );
+
+        // Try to find user in auth.users by email
+        const { data: authUsers, error: authError } =
+          await supabaseClient.auth.admin.listUsers();
+
+        if (!authError && authUsers?.users) {
+          const authUser = authUsers.users.find(
+            (u) => u.email === customer.email,
+          );
+
+          if (authUser) {
+            console.log(
+              "Found user in auth.users, creating public.users record for:",
+              authUser.email,
+            );
+            userId = authUser.id;
+
+            // Create user in public.users table
+            const { error: createUserError } = await supabaseClient
+              .from("users")
+              .insert({
+                id: authUser.id,
+                user_id: authUser.id,
+                email: authUser.email,
+                name:
+                  authUser.user_metadata?.name ||
+                  authUser.user_metadata?.full_name ||
+                  authUser.email.split("@")[0],
+                full_name: authUser.user_metadata?.full_name,
+                avatar_url: authUser.user_metadata?.avatar_url,
+                token_identifier: authUser.email,
+                subscription: "premium",
+                subscription_status: "premium",
+                created_at: authUser.created_at,
+                updated_at: new Date().toISOString(),
+              });
+
+            if (createUserError) {
+              console.error(
+                "Error creating user in public.users during subscription creation:",
+                createUserError,
+              );
+            } else {
+              console.log(
+                "Successfully created user in public.users with premium status during subscription creation:",
+                userId,
+              );
+            }
+          }
+        }
+
+        if (!userId) {
+          throw new Error("User not found in auth.users or public.users");
+        }
       }
     } catch (error) {
       console.error("Unable to find associated user:", error);
@@ -548,8 +612,50 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
 
         if (authUserError || !authUser.user) {
           console.error("Error fetching user from auth.users:", authUserError);
+
+          // Try to get customer email from Stripe as fallback
+          try {
+            const customer = await stripe.customers.retrieve(
+              stripeSubscription.customer,
+            );
+            if (!customer.deleted && "email" in customer && customer.email) {
+              console.log(
+                "Creating user record with Stripe customer email:",
+                customer.email,
+              );
+
+              const { error: createUserError } = await supabaseClient
+                .from("users")
+                .insert({
+                  id: userId,
+                  user_id: userId,
+                  email: customer.email,
+                  name: customer.name || customer.email.split("@")[0],
+                  full_name: customer.name,
+                  token_identifier: customer.email,
+                  subscription: "premium",
+                  subscription_status: "premium",
+                  created_at: new Date().toISOString(),
+                  updated_at: new Date().toISOString(),
+                });
+
+              if (createUserError) {
+                console.error(
+                  "Error creating user from Stripe customer data:",
+                  createUserError,
+                );
+              } else {
+                console.log(
+                  "Successfully created user from Stripe customer data with premium status:",
+                  userId,
+                );
+              }
+            }
+          } catch (customerError) {
+            console.error("Error retrieving Stripe customer:", customerError);
+          }
         } else {
-          // Create user in public.users table
+          // Create user in public.users table from auth.users data
           const { error: createUserError } = await supabaseClient
             .from("users")
             .insert({
@@ -558,7 +664,8 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
               email: authUser.user.email,
               name:
                 authUser.user.user_metadata?.name ||
-                authUser.user.user_metadata?.full_name,
+                authUser.user.user_metadata?.full_name ||
+                authUser.user.email?.split("@")[0],
               full_name: authUser.user.user_metadata?.full_name,
               avatar_url: authUser.user.user_metadata?.avatar_url,
               token_identifier: authUser.user.email,
