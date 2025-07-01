@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { SuccessToast } from "@/components/success-toast";
 import { FreeIdeaDisplay } from "@/components/free-idea-display";
+import { shouldDisableBackgroundFetching } from "@/components/IdeaGenerator";
 import type { User } from "@supabase/supabase-js";
 
 // Function to check if user has generated their free idea
@@ -258,6 +259,14 @@ export default function Dashboard({
 
   // Function to refresh subscription status with error handling to prevent UI clearing
   const refreshSubscriptionStatus = async (userId: string) => {
+    // Skip background fetching if idea generation just completed
+    if (shouldDisableBackgroundFetching()) {
+      console.log(
+        "🚫 [BACKGROUND FETCH DISABLED] Skipping subscription status refresh - idea generation in progress or recently completed",
+      );
+      return isSubscribed;
+    }
+
     try {
       const subscriptionStatus = await checkUserSubscription(userId);
       setIsSubscribed(subscriptionStatus);
@@ -301,21 +310,27 @@ export default function Dashboard({
         }
 
         // Check free idea status with error handling to prevent race condition
-        try {
-          const freeIdeaStatus = await checkUserHasFreeIdea(
-            user.email || "",
-            supabase,
+        if (!shouldDisableBackgroundFetching()) {
+          try {
+            const freeIdeaStatus = await checkUserHasFreeIdea(
+              user.email || "",
+              supabase,
+            );
+            setHasGeneratedFreeIdea(freeIdeaStatus);
+          } catch (error) {
+            console.error(
+              "❌ [RACE CONDITION FIX] Error checking free idea status:",
+              error,
+            );
+            console.warn(
+              "⚠️ [RACE CONDITION FIX] Free idea status check failed, preserving current state",
+            );
+            // Don't change the free idea state if check fails
+          }
+        } else {
+          console.log(
+            "🚫 [BACKGROUND FETCH DISABLED] Skipping free idea status check - idea generation in progress or recently completed",
           );
-          setHasGeneratedFreeIdea(freeIdeaStatus);
-        } catch (error) {
-          console.error(
-            "❌ [RACE CONDITION FIX] Error checking free idea status:",
-            error,
-          );
-          console.warn(
-            "⚠️ [RACE CONDITION FIX] Free idea status check failed, preserving current state",
-          );
-          // Don't change the free idea state if check fails
         }
       } catch (error) {
         console.error("Error loading user data:", error);
@@ -340,7 +355,7 @@ export default function Dashboard({
   // Listen for focus events to refresh data when user returns to tab
   useEffect(() => {
     const handleFocus = async () => {
-      if (user?.id) {
+      if (user?.id && !shouldDisableBackgroundFetching()) {
         await refreshSubscriptionStatus(user.id);
         // Also refresh free idea status with error handling
         try {
@@ -359,6 +374,10 @@ export default function Dashboard({
           );
           // Don't change the free idea state if refresh fails
         }
+      } else if (shouldDisableBackgroundFetching()) {
+        console.log(
+          "🚫 [BACKGROUND FETCH DISABLED] Skipping focus refresh - idea generation in progress or recently completed",
+        );
       }
     };
 

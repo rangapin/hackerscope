@@ -29,6 +29,31 @@ import { Badge } from "@/components/ui/badge";
 
 import { createClient } from "../../supabase/client";
 
+// Global state to prevent background fetching after idea generation
+let isIdeaGenerationInProgress = false;
+let ideaGenerationCompleteTime = 0;
+
+// Helper function to check if background fetching should be disabled
+export function shouldDisableBackgroundFetching(): boolean {
+  if (isIdeaGenerationInProgress) {
+    return true;
+  }
+
+  const now = Date.now();
+  const timeSinceGeneration = now - ideaGenerationCompleteTime;
+
+  // Disable background fetching for 3 seconds after idea generation
+  return timeSinceGeneration < 3000;
+}
+
+// Helper function to set idea generation state
+export function setIdeaGenerationState(inProgress: boolean) {
+  isIdeaGenerationInProgress = inProgress;
+  if (!inProgress) {
+    ideaGenerationCompleteTime = Date.now();
+  }
+}
+
 // Full-screen loading overlay component
 function FullScreenLoadingOverlay({ isVisible }: { isVisible: boolean }) {
   const [currentPhraseIndex, setCurrentPhraseIndex] = useState(0);
@@ -201,6 +226,9 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
     setShowFullScreenLoading(true);
     setGeneratedIdea(null);
 
+    // Set global state to prevent background fetching
+    setIdeaGenerationState(true);
+
     try {
       const response = await fetch("/api/ideas/generate", {
         method: "POST",
@@ -264,12 +292,17 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
       });
       setIsGenerating(false);
       setShowFullScreenLoading(false);
+      // Reset idea generation state on error
+      setIdeaGenerationState(false);
       return;
     }
 
     // Hide loading overlay
     setIsGenerating(false);
     setShowFullScreenLoading(false);
+
+    // Mark idea generation as complete
+    setIdeaGenerationState(false);
 
     // Add a delay to ensure database transaction is fully committed and then force refresh
     setTimeout(() => {

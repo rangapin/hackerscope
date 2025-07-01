@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { createClient } from "../../supabase/client";
+import { shouldDisableBackgroundFetching } from "@/components/IdeaGenerator";
 import {
   Card,
   CardContent,
@@ -112,6 +113,14 @@ export function LibraryClient({
 
   // Function to refresh saved ideas from the database
   const refreshSavedIdeas = async () => {
+    // Skip background fetching if idea generation just completed
+    if (shouldDisableBackgroundFetching()) {
+      console.log(
+        "🚫 [BACKGROUND FETCH DISABLED] LibraryClient - Skipping refresh - idea generation in progress or recently completed",
+      );
+      return;
+    }
+
     try {
       console.log(
         "🔄 [CACHE DEBUG] LibraryClient - refreshSavedIdeas called:",
@@ -355,10 +364,16 @@ export function LibraryClient({
           );
           // Add small delay to ensure database consistency
           setTimeout(() => {
-            console.log(
-              "⏰ [CACHE DEBUG] Triggering refresh after realtime event delay",
-            );
-            refreshSavedIdeas();
+            if (!shouldDisableBackgroundFetching()) {
+              console.log(
+                "⏰ [CACHE DEBUG] Triggering refresh after realtime event delay",
+              );
+              refreshSavedIdeas();
+            } else {
+              console.log(
+                "🚫 [BACKGROUND FETCH DISABLED] Skipping realtime refresh - idea generation in progress or recently completed",
+              );
+            }
           }, 100);
         },
       )
@@ -383,10 +398,16 @@ export function LibraryClient({
           );
           // Add small delay to ensure database consistency
           setTimeout(() => {
-            console.log(
-              "⏰ [CACHE DEBUG] Triggering refresh after realtime event delay",
-            );
-            refreshSavedIdeas();
+            if (!shouldDisableBackgroundFetching()) {
+              console.log(
+                "⏰ [CACHE DEBUG] Triggering refresh after realtime event delay",
+              );
+              refreshSavedIdeas();
+            } else {
+              console.log(
+                "🚫 [BACKGROUND FETCH DISABLED] Skipping realtime refresh - idea generation in progress or recently completed",
+              );
+            }
           }, 100);
         },
       )
@@ -407,18 +428,24 @@ export function LibraryClient({
   // Listen for focus events to refresh data when user returns to tab
   useEffect(() => {
     const handleFocus = () => {
-      console.log(
-        "🎯 [CACHE DEBUG] LibraryClient - Window focused, refreshing saved ideas:",
-        {
-          timestamp: new Date().toISOString(),
-          triggerSource: "window-focus-event",
-        },
-      );
-      refreshSavedIdeas();
+      if (!shouldDisableBackgroundFetching()) {
+        console.log(
+          "🎯 [CACHE DEBUG] LibraryClient - Window focused, refreshing saved ideas:",
+          {
+            timestamp: new Date().toISOString(),
+            triggerSource: "window-focus-event",
+          },
+        );
+        refreshSavedIdeas();
+      } else {
+        console.log(
+          "🚫 [BACKGROUND FETCH DISABLED] LibraryClient - Skipping focus refresh - idea generation in progress or recently completed",
+        );
+      }
     };
 
     const handleVisibilityChange = () => {
-      if (!document.hidden) {
+      if (!document.hidden && !shouldDisableBackgroundFetching()) {
         console.log(
           "👁️ [CACHE DEBUG] LibraryClient - Page became visible, refreshing:",
           {
@@ -427,6 +454,10 @@ export function LibraryClient({
           },
         );
         refreshSavedIdeas();
+      } else if (!document.hidden && shouldDisableBackgroundFetching()) {
+        console.log(
+          "🚫 [BACKGROUND FETCH DISABLED] LibraryClient - Skipping visibility refresh - idea generation in progress or recently completed",
+        );
       }
     };
 

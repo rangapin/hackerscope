@@ -4,6 +4,10 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
 import {
+  shouldDisableBackgroundFetching,
+  setIdeaGenerationState,
+} from "@/components/IdeaGenerator";
+import {
   Card,
   CardContent,
   CardDescription,
@@ -137,6 +141,14 @@ export function FreeIdeaDisplay({
 
   // Check if user already has a free idea stored with race condition protection
   const checkExistingFreeIdea = async () => {
+    // Skip background fetching if idea generation just completed
+    if (shouldDisableBackgroundFetching()) {
+      console.log(
+        "🚫 [BACKGROUND FETCH DISABLED] FreeIdeaDisplay - Skipping checkExistingFreeIdea - idea generation in progress or recently completed",
+      );
+      return;
+    }
+
     try {
       const { data, error } = await supabase
         .from("generated_ideas")
@@ -249,6 +261,9 @@ export function FreeIdeaDisplay({
     setShowFullScreenLoading(true);
     setError(null);
 
+    // Set global state to prevent background fetching
+    setIdeaGenerationState(true);
+
     try {
       const response = await fetch("/api/ideas/generate", {
         method: "POST",
@@ -267,6 +282,9 @@ export function FreeIdeaDisplay({
         throw new Error(data.message || "Failed to generate idea");
       }
 
+      // Mark idea generation as complete
+      setIdeaGenerationState(false);
+
       // Hide loading overlay with a slight delay for smooth transition
       setTimeout(() => {
         setShowFullScreenLoading(false);
@@ -282,6 +300,8 @@ export function FreeIdeaDisplay({
       setError("Failed to generate your free idea. Please try again.");
       setIsGenerating(false);
       setShowFullScreenLoading(false);
+      // Reset idea generation state on error
+      setIdeaGenerationState(false);
     }
   };
 
