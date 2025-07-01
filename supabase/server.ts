@@ -2,6 +2,14 @@ import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
 export const createClient = async () => {
+  console.log("🔧 [SERVER DEBUG] Creating server client with:", {
+    url: process.env.NEXT_PUBLIC_SUPABASE_URL ? "[PRESENT]" : "[MISSING]",
+    anonKey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
+      ? "[PRESENT]"
+      : "[MISSING]",
+    timestamp: new Date().toISOString(),
+  });
+
   const cookieStore = cookies();
 
   return createServerClient(
@@ -29,18 +37,6 @@ export const createClient = async () => {
             // If cookies() is called in an environment where it's not allowed
             // Silently handle the error
           }
-        },
-      },
-      global: {
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY}`,
-          apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
-          // Add cache-busting headers for server-side requests
-          "Cache-Control": "no-cache, no-store, must-revalidate",
-          Pragma: "no-cache",
-          Expires: "0",
         },
       },
       auth: {

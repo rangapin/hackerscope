@@ -141,14 +141,31 @@ export const checkUserSubscription = async (userId: string) => {
 
   const supabase = await createClient();
 
-  // Authentication check
+  // Authentication check with detailed logging
   const {
     data: { user },
     error: authError,
   } = await supabase.auth.getUser();
 
+  console.log("🔍 [API KEY DEBUG] Auth check in checkUserSubscription:", {
+    hasUser: !!user,
+    userId: user?.id,
+    authError: authError
+      ? {
+          code: authError.code,
+          message: authError.message,
+          details: authError.details,
+        }
+      : null,
+    timestamp: new Date().toISOString(),
+  });
+
   if (authError || !user || user.id !== userId) {
-    console.error("❌ [CACHE DEBUG] Unauthorized subscription check attempt");
+    console.error("❌ [CACHE DEBUG] Unauthorized subscription check attempt:", {
+      authError,
+      hasUser: !!user,
+      userIdMatch: user?.id === userId,
+    });
     return false;
   }
 
@@ -165,7 +182,13 @@ export const checkUserSubscription = async (userId: string) => {
     .single();
 
   if (error) {
-    console.log("❌ [CACHE DEBUG] Subscription query error:", error);
+    console.log("❌ [API KEY DEBUG] Subscription query error:", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      timestamp: new Date().toISOString(),
+    });
     return false;
   }
 

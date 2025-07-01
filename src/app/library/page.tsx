@@ -152,6 +152,13 @@ async function getSavedIdeasWithDetails(
     },
   );
 
+  console.log("🔍 [API KEY DEBUG] About to query generated_ideas table:", {
+    ideaIds,
+    ideaIdsCount: ideaIds.length,
+    userEmail,
+    timestamp: new Date().toISOString(),
+  });
+
   const { data: generatedIdeas, error: generatedError } = await supabase
     .from("generated_ideas")
     .select("*")

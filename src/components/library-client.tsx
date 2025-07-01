@@ -137,6 +137,14 @@ export function LibraryClient({
         },
       );
 
+      console.log(
+        "🔍 [API KEY DEBUG] LibraryClient - About to query saved_ideas:",
+        {
+          userEmail: user.email,
+          timestamp: new Date().toISOString(),
+        },
+      );
+
       const { data: savedIdeasData, error: savedError } = await supabase
         .from("saved_ideas")
         .select("*")
@@ -186,6 +194,16 @@ export function LibraryClient({
       console.log(
         "🔄 [DEBUG] LibraryClient - Fetching generated ideas for IDs:",
         ideaIds,
+      );
+
+      console.log(
+        "🔍 [API KEY DEBUG] LibraryClient - About to query generated_ideas:",
+        {
+          ideaIds,
+          ideaIdsCount: ideaIds.length,
+          userEmail: user.email,
+          timestamp: new Date().toISOString(),
+        },
       );
 
       const { data: generatedIdeas, error: generatedError } = await supabase
