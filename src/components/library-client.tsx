@@ -474,6 +474,31 @@ export function LibraryClient({
     };
   }, []);
 
+  // Check URL params for refresh trigger and refresh data on mount
+  useEffect(() => {
+    const urlParams = new URLSearchParams(window.location.search);
+    const refreshParam = urlParams.get("refresh");
+
+    if (refreshParam) {
+      console.log(
+        "🔄 [CACHE DEBUG] LibraryClient - Refresh parameter detected, forcing refresh:",
+        {
+          refreshParam,
+          timestamp: new Date().toISOString(),
+          triggerSource: "url-refresh-parameter",
+        },
+      );
+      // Force refresh when coming from idea generation
+      setTimeout(() => {
+        refreshSavedIdeas();
+      }, 500);
+
+      // Clean up URL without causing navigation
+      const newUrl = window.location.pathname;
+      window.history.replaceState({}, "", newUrl);
+    }
+  }, []);
+
   // Listen for focus events to refresh data when user returns to tab
   useEffect(() => {
     const handleFocus = () => {

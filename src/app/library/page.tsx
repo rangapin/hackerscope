@@ -20,6 +20,17 @@ export const revalidate = 0;
 export const fetchCache = "force-no-store";
 export const runtime = "nodejs";
 
+// Add cache headers to prevent browser caching
+export async function generateMetadata() {
+  return {
+    other: {
+      "Cache-Control": "no-cache, no-store, must-revalidate",
+      Pragma: "no-cache",
+      Expires: "0",
+    },
+  };
+}
+
 interface SavedIdea {
   id: string;
   title: string;

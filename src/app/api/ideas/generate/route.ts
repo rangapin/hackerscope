@@ -937,7 +937,7 @@ export async function POST(request: NextRequest) {
         },
       );
 
-      // Next.js cache invalidation
+      // Next.js cache invalidation with tag-based revalidation
       revalidatePath("/library", "page");
       console.log("✅ [CACHE DEBUG] Revalidated /library page");
 
@@ -953,6 +953,10 @@ export async function POST(request: NextRequest) {
 
       revalidatePath("/dashboard", "layout");
       console.log("✅ [CACHE DEBUG] Revalidated /dashboard layout");
+
+      // Additional aggressive cache busting
+      revalidatePath("/");
+      console.log("✅ [CACHE DEBUG] Revalidated root path");
 
       console.log(
         "✅ [CACHE DEBUG] Successfully completed all cache invalidation calls",

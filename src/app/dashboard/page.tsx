@@ -47,6 +47,17 @@ async function checkUserHasFreeIdea(userEmail: string, supabaseClient?: any) {
         "⚠️ [RACE CONDITION FIX] Auth error in checkUserHasFreeIdea, returning false to preserve UI state:",
         authError,
       );
+
+      // Handle refresh token errors
+      if (
+        authError.message?.includes("refresh_token_not_found") ||
+        authError.message?.includes("Invalid Refresh Token")
+      ) {
+        console.log(
+          "🔄 [AUTH FIX] Invalid refresh token detected in checkUserHasFreeIdea",
+        );
+      }
+
       return false;
     }
 
@@ -173,6 +184,17 @@ async function getUserFreeIdea(userEmail: string): Promise<any | null> {
 
   if (authError || !authUser.user) {
     console.error("❌ [SERVER-SIDE] Auth error in getUserFreeIdea:", authError);
+
+    // Handle refresh token errors
+    if (
+      authError?.message?.includes("refresh_token_not_found") ||
+      authError?.message?.includes("Invalid Refresh Token")
+    ) {
+      console.log(
+        "🔄 [AUTH FIX] Invalid refresh token detected in getUserFreeIdea",
+      );
+    }
+
     return null;
   }
 
@@ -320,6 +342,18 @@ export default function Dashboard({
 
         if (authError) {
           console.error("Auth error in loadUserData:", authError);
+
+          // Handle refresh token errors by clearing session and redirecting
+          if (
+            authError.message?.includes("refresh_token_not_found") ||
+            authError.message?.includes("Invalid Refresh Token")
+          ) {
+            console.log(
+              "🔄 [AUTH FIX] Clearing invalid session and redirecting to sign-in",
+            );
+            await supabase.auth.signOut();
+          }
+
           router.push("/sign-in");
           return;
         }
