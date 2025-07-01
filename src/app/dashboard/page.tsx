@@ -349,8 +349,20 @@ export default function Dashboard({
     return client;
   }, []);
 
-  // Function to refresh subscription status with error handling to prevent UI clearing
+  // TEMPORARILY DISABLED: Function to refresh subscription status
   const refreshSubscriptionStatus = async (userId: string) => {
+    console.log(
+      "🚫 [SUBSCRIPTION DISABLED] refreshSubscriptionStatus temporarily disabled - returning false",
+      {
+        userId,
+        timestamp: new Date().toISOString(),
+      },
+    );
+
+    // Always return false to bypass subscription checks
+    return false;
+
+    /* COMMENTED OUT - ORIGINAL SUBSCRIPTION REFRESH CODE
     // Validate userId parameter with comprehensive checks
     if (!userId || typeof userId !== "string" || userId.trim() === "") {
       console.error(
@@ -387,6 +399,7 @@ export default function Dashboard({
       // Don't change the subscription state if refresh fails
       return isSubscribed;
     }
+    */
   };
 
   useEffect(() => {
@@ -426,8 +439,14 @@ export default function Dashboard({
 
         setUser(user);
 
-        // Check for successful payment session
+        // TEMPORARILY DISABLED: Check for successful payment session
         if (searchParams.session_id) {
+          console.log(
+            "🚫 [SUBSCRIPTION DISABLED] Skipping payment session subscription refresh",
+          );
+          // Skip subscription refresh for now
+
+          /* COMMENTED OUT - ORIGINAL PAYMENT SESSION HANDLING
           // If there's a session_id, wait a bit for Stripe to process and then refresh subscription
           await new Promise((resolve) => setTimeout(resolve, 2000));
           if (user.id && typeof user.id === "string" && user.id.trim() !== "") {
@@ -438,8 +457,15 @@ export default function Dashboard({
               { userId: user.id, type: typeof user.id },
             );
           }
+          */
         } else {
-          // Normal subscription check
+          // TEMPORARILY DISABLED: Check subscription status
+          console.log(
+            "🚫 [SUBSCRIPTION DISABLED] Skipping subscription status check in fetchUserData",
+          );
+          setIsSubscribed(false); // Always set to false for now
+
+          /* COMMENTED OUT - ORIGINAL SUBSCRIPTION CHECK
           if (user.id && typeof user.id === "string" && user.id.trim() !== "") {
             const subscriptionStatus = await checkUserSubscription(user.id);
             setIsSubscribed(subscriptionStatus);
@@ -450,6 +476,7 @@ export default function Dashboard({
             );
             setIsSubscribed(false);
           }
+          */
         }
 
         // Check free idea status with error handling to prevent race condition

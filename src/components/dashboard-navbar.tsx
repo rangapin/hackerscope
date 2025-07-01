@@ -69,7 +69,13 @@ export default function DashboardNavbar({
       setUser(user);
 
       if (user) {
-        // Check subscription status
+        // TEMPORARILY DISABLED: Check subscription status
+        console.log(
+          "🚫 [SUBSCRIPTION DISABLED] Skipping subscription status check in dashboard navbar",
+        );
+        setIsSubscribed(false); // Always set to false for now
+
+        /* COMMENTED OUT - ORIGINAL SUBSCRIPTION CHECK
         const { data: subscription, error: subError } = await supabase
           .from("subscriptions")
           .select("*")
@@ -80,6 +86,7 @@ export default function DashboardNavbar({
         if (!subError && subscription) {
           setIsSubscribed(true);
         }
+        */
       }
     } catch (err) {
       setError("Failed to load user data");
@@ -103,9 +110,9 @@ export default function DashboardNavbar({
       router.push("/sign-in?redirect=dashboard");
       return;
     }
-    
+
     console.log("Testing direct checkout...");
-    
+
     try {
       const response = await fetch("/api/billing/create-checkout", {
         method: "POST",
@@ -116,10 +123,10 @@ export default function DashboardNavbar({
           price_id: "price_1RfgF5CBtpFxI513jBPiqq2o",
         }),
       });
-      
+
       const data = await response.json();
       console.log("Direct checkout response:", data);
-      
+
       if (data?.url) {
         window.location.href = data.url;
       } else {

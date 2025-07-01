@@ -134,11 +134,20 @@ export const signOutAction = async () => {
 };
 
 export const checkUserSubscription = async (userId: string) => {
-  console.log("🔄 [CACHE DEBUG] checkUserSubscription called:", {
-    userId,
-    timestamp: new Date().toISOString(),
-  });
+  console.log(
+    "🚫 [SUBSCRIPTION DISABLED] checkUserSubscription temporarily disabled - returning false to focus on core functionality",
+    {
+      userId,
+      timestamp: new Date().toISOString(),
+    },
+  );
 
+  // TEMPORARILY DISABLED: Return false to bypass subscription checks
+  // This allows us to focus on fixing the core idea generation and display functionality
+  // TODO: Re-enable subscription checks after fixing user_id issues
+  return false;
+
+  /* COMMENTED OUT - ORIGINAL SUBSCRIPTION CHECK CODE
   // Validate input parameter
   if (!userId || typeof userId !== "string" || userId.trim() === "") {
     console.error(
@@ -252,6 +261,7 @@ export const checkUserSubscription = async (userId: string) => {
   });
 
   return hasSubscription;
+  */
 };
 
 export const submitEmailAction = async (formData: FormData) => {
