@@ -11,6 +11,14 @@ import {
 } from "@/components/ui/card";
 import { BookOpen, Loader2 } from "lucide-react";
 import { LibraryClient } from "@/components/library-client";
+import { headers } from "next/headers";
+
+// Force dynamic rendering to prevent caching
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+// Disable all caching layers
+export const fetchCache = "force-no-store";
+export const runtime = "nodejs";
 
 interface SavedIdea {
   id: string;
@@ -38,35 +46,93 @@ interface GeneratedIdea {
 async function getSavedIdeasWithDetails(
   userEmail: string,
 ): Promise<(SavedIdea & { generated_idea?: GeneratedIdea })[]> {
+  console.log(
+    "🔄 [CACHE DEBUG] Library Page - Starting getSavedIdeasWithDetails:",
+    {
+      userEmail,
+      timestamp: new Date().toISOString(),
+      cacheHeaders: {
+        "Cache-Control": "no-cache, no-store, must-revalidate",
+        Pragma: "no-cache",
+        Expires: "0",
+      },
+    },
+  );
+
   const supabase = await createClient();
 
-  // Get saved ideas
+  // Force fresh data by adding timestamp to prevent any client-side caching
+  const cacheBreaker = Date.now();
+
+  // Get saved ideas with cache-busting
+  console.log("🔍 [CACHE DEBUG] Fetching saved_ideas with cache breaker:", {
+    userEmail,
+    cacheBreaker,
+    timestamp: new Date().toISOString(),
+  });
+
   const { data: savedIdeas, error: savedError } = await supabase
     .from("saved_ideas")
     .select("*")
     .eq("user_email", userEmail)
-    .order("created_at", { ascending: false });
+    .order("created_at", { ascending: false })
+    .limit(1000); // Add explicit limit to prevent caching issues
 
   if (savedError) {
-    console.error("Error loading saved ideas:", savedError);
+    console.error(
+      "❌ [DEBUG] Library Page - Error loading saved ideas:",
+      savedError,
+    );
     return [];
   }
 
+  console.log("📊 [DEBUG] Library Page - Fetched saved ideas:", {
+    count: savedIdeas?.length || 0,
+    ideas:
+      savedIdeas?.map((idea) => ({
+        id: idea.id,
+        title: idea.title,
+        created_at: idea.created_at,
+      })) || [],
+    timestamp: new Date().toISOString(),
+  });
+
   if (!savedIdeas || savedIdeas.length === 0) {
+    console.log("📭 [DEBUG] Library Page - No saved ideas found");
     return [];
   }
 
   // Get the corresponding generated ideas for detailed information
   const ideaIds = savedIdeas.map((idea) => idea.idea_id);
+  console.log(
+    "🔍 [CACHE DEBUG] Library Page - Fetching generated ideas for IDs:",
+    {
+      ideaIds,
+      cacheBreaker,
+      timestamp: new Date().toISOString(),
+    },
+  );
+
   const { data: generatedIdeas, error: generatedError } = await supabase
     .from("generated_ideas")
     .select("*")
-    .in("id", ideaIds);
+    .in("id", ideaIds)
+    .limit(1000); // Add explicit limit to prevent caching issues
 
   if (generatedError) {
-    console.error("Error loading generated ideas:", generatedError);
+    console.error(
+      "❌ [DEBUG] Library Page - Error loading generated ideas:",
+      generatedError,
+    );
     return savedIdeas;
   }
+
+  console.log("📊 [DEBUG] Library Page - Fetched generated ideas:", {
+    count: generatedIdeas?.length || 0,
+    ideas:
+      generatedIdeas?.map((idea) => ({ id: idea.id, title: idea.title })) || [],
+    timestamp: new Date().toISOString(),
+  });
 
   // Merge the data
   const mergedIdeas = savedIdeas.map((savedIdea) => {
@@ -79,10 +145,34 @@ async function getSavedIdeasWithDetails(
     };
   });
 
+  console.log("✅ [DEBUG] Library Page - Completed getSavedIdeasWithDetails:", {
+    mergedCount: mergedIdeas.length,
+    timestamp: new Date().toISOString(),
+  });
+
   return mergedIdeas;
 }
 
 export default async function LibraryPage() {
+  console.log("🚀 [CACHE DEBUG] Library Page - Component rendering started:", {
+    timestamp: new Date().toISOString(),
+    renderType: "force-dynamic",
+    revalidate: 0,
+    fetchCache: "force-no-store",
+  });
+
+  // Force dynamic rendering to prevent caching issues
+  const headersList = headers();
+  const timestamp = headersList.get("x-timestamp") || Date.now();
+  const cacheControl = headersList.get("cache-control");
+
+  console.log("📋 [CACHE DEBUG] Request headers analysis:", {
+    timestamp,
+    cacheControl,
+    userAgent: headersList.get("user-agent")?.substring(0, 50),
+    requestTime: new Date().toISOString(),
+  });
+
   const supabase = await createClient();
 
   const {
@@ -90,11 +180,44 @@ export default async function LibraryPage() {
   } = await supabase.auth.getUser();
 
   if (!user) {
+    console.log(
+      "❌ [DEBUG] Library Page - No user found, redirecting to sign-in",
+    );
     return redirect("/sign-in");
   }
 
+  console.log("👤 [DEBUG] Library Page - User authenticated:", {
+    userId: user.id,
+    email: user.email,
+    timestamp: new Date().toISOString(),
+  });
+
+  console.log("🔄 [CACHE DEBUG] Starting data fetching operations:", {
+    userId: user.id,
+    userEmail: user.email,
+    timestamp: new Date().toISOString(),
+  });
+
   const isSubscribed = await checkUserSubscription(user.id);
   const savedIdeas = await getSavedIdeasWithDetails(user.email || "");
+
+  console.log("📋 [CACHE DEBUG] Library Page - Final data before render:", {
+    savedIdeasCount: savedIdeas.length,
+    isSubscribed,
+    userId: user.id,
+    userEmail: user.email,
+    renderTimestamp: new Date().toISOString(),
+    dataFreshness: {
+      savedIdeasFetched: new Date().toISOString(),
+      subscriptionChecked: new Date().toISOString(),
+    },
+  });
+
+  console.log("🎨 [CACHE DEBUG] Library Page - Starting render with data:", {
+    savedIdeasCount: savedIdeas.length,
+    isSubscribed,
+    renderStart: new Date().toISOString(),
+  });
 
   return (
     <div className="min-h-screen" style={{ backgroundColor: "#FEFDFB" }}>

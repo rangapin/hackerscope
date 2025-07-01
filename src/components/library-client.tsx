@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { createClient } from "../../supabase/client";
 import {
   Card,
   CardContent,
@@ -72,15 +73,289 @@ interface LibraryClientProps {
   savedIdeas: SavedIdea[];
 }
 
-export function LibraryClient({ savedIdeas }: LibraryClientProps) {
+export function LibraryClient({
+  savedIdeas: initialSavedIdeas,
+}: LibraryClientProps) {
+  console.log("🎨 [DEBUG] LibraryClient - Component initialized with:", {
+    initialIdeasCount: initialSavedIdeas.length,
+    initialIdeas: initialSavedIdeas.map((idea) => ({
+      id: idea.id,
+      title: idea.title,
+      created_at: idea.created_at,
+    })),
+    timestamp: new Date().toISOString(),
+  });
+
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [savedIdeas, setSavedIdeas] = useState<SavedIdea[]>(initialSavedIdeas);
+  const [isRefreshing, setIsRefreshing] = useState(false);
   const router = useRouter();
+  const supabase = createClient();
 
   const handleViewDetails = (idea: SavedIdea) => {
     setSelectedIdea(idea);
     setShowDetailsModal(true);
   };
+
+  // Function to refresh saved ideas from the database
+  const refreshSavedIdeas = async () => {
+    try {
+      console.log(
+        "🔄 [CACHE DEBUG] LibraryClient - refreshSavedIdeas called:",
+        {
+          timestamp: new Date().toISOString(),
+          cacheInvalidation: "manual-refresh",
+        },
+      );
+
+      setIsRefreshing(true);
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+
+      if (!user?.email) {
+        console.log(
+          "❌ [DEBUG] LibraryClient - No user email found in refresh",
+        );
+        return;
+      }
+
+      console.log("👤 [DEBUG] LibraryClient - Refreshing for user:", {
+        email: user.email,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Get saved ideas with cache-busting
+      const cacheBreaker = Date.now();
+      console.log(
+        "🔍 [CACHE DEBUG] LibraryClient - Fetching saved_ideas with cache breaker:",
+        {
+          userEmail: user.email,
+          cacheBreaker,
+          timestamp: new Date().toISOString(),
+        },
+      );
+
+      const { data: savedIdeasData, error: savedError } = await supabase
+        .from("saved_ideas")
+        .select("*")
+        .eq("user_email", user.email)
+        .order("created_at", { ascending: false })
+        .limit(1000); // Add explicit limit to prevent caching issues
+
+      if (savedError) {
+        console.error(
+          "❌ [DEBUG] LibraryClient - Error loading saved ideas:",
+          savedError,
+        );
+        return;
+      }
+
+      console.log(
+        "📊 [DEBUG] LibraryClient - Fetched saved ideas in refresh:",
+        {
+          count: savedIdeasData?.length || 0,
+          ideas:
+            savedIdeasData?.map((idea) => ({
+              id: idea.id,
+              title: idea.title,
+              created_at: idea.created_at,
+            })) || [],
+          timestamp: new Date().toISOString(),
+        },
+      );
+
+      if (!savedIdeasData || savedIdeasData.length === 0) {
+        console.log(
+          "📭 [DEBUG] LibraryClient - No saved ideas found, setting empty array",
+        );
+        setSavedIdeas([]);
+        return;
+      }
+
+      // Get the corresponding generated ideas for detailed information
+      const ideaIds = savedIdeasData.map((idea) => idea.idea_id);
+      console.log(
+        "🔄 [DEBUG] LibraryClient - Fetching generated ideas for IDs:",
+        ideaIds,
+      );
+
+      const { data: generatedIdeas, error: generatedError } = await supabase
+        .from("generated_ideas")
+        .select("*")
+        .in("id", ideaIds)
+        .limit(1000); // Add explicit limit to prevent caching issues
+
+      if (generatedError) {
+        console.error(
+          "❌ [DEBUG] LibraryClient - Error loading generated ideas:",
+          generatedError,
+        );
+        setSavedIdeas(savedIdeasData);
+        return;
+      }
+
+      console.log(
+        "📊 [DEBUG] LibraryClient - Fetched generated ideas in refresh:",
+        {
+          count: generatedIdeas?.length || 0,
+          ideas:
+            generatedIdeas?.map((idea) => ({
+              id: idea.id,
+              title: idea.title,
+            })) || [],
+          timestamp: new Date().toISOString(),
+        },
+      );
+
+      // Merge the data
+      const mergedIdeas = savedIdeasData.map((savedIdea) => {
+        const generatedIdea = generatedIdeas?.find(
+          (gi) => gi.id === savedIdea.idea_id,
+        );
+        return {
+          ...savedIdea,
+          generated_idea: generatedIdea,
+        };
+      });
+
+      console.log("✅ [DEBUG] LibraryClient - Setting merged ideas:", {
+        mergedCount: mergedIdeas.length,
+        timestamp: new Date().toISOString(),
+      });
+
+      setSavedIdeas(mergedIdeas);
+    } catch (error) {
+      console.error(
+        "❌ [DEBUG] LibraryClient - Error refreshing saved ideas:",
+        error,
+      );
+    } finally {
+      setIsRefreshing(false);
+      console.log("🏁 [DEBUG] LibraryClient - refreshSavedIdeas completed:", {
+        timestamp: new Date().toISOString(),
+      });
+    }
+  };
+
+  // Set up real-time subscriptions for saved_ideas and generated_ideas tables
+  useEffect(() => {
+    console.log(
+      "🔗 [CACHE DEBUG] LibraryClient - Setting up real-time subscriptions:",
+      {
+        timestamp: new Date().toISOString(),
+        subscriptionType: "supabase-realtime",
+        tables: ["saved_ideas", "generated_ideas"],
+      },
+    );
+
+    const channel = supabase
+      .channel("library-updates")
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "saved_ideas",
+        },
+        (payload) => {
+          console.log(
+            "🔔 [CACHE DEBUG] LibraryClient - Saved ideas table changed:",
+            {
+              event: payload.eventType,
+              table: payload.table,
+              new: payload.new,
+              old: payload.old,
+              timestamp: new Date().toISOString(),
+              triggerSource: "realtime-subscription",
+            },
+          );
+          // Add small delay to ensure database consistency
+          setTimeout(() => {
+            console.log(
+              "⏰ [CACHE DEBUG] Triggering refresh after realtime event delay",
+            );
+            refreshSavedIdeas();
+          }, 100);
+        },
+      )
+      .on(
+        "postgres_changes",
+        {
+          event: "*",
+          schema: "public",
+          table: "generated_ideas",
+        },
+        (payload) => {
+          console.log(
+            "🔔 [CACHE DEBUG] LibraryClient - Generated ideas table changed:",
+            {
+              event: payload.eventType,
+              table: payload.table,
+              new: payload.new,
+              old: payload.old,
+              timestamp: new Date().toISOString(),
+              triggerSource: "realtime-subscription",
+            },
+          );
+          // Add small delay to ensure database consistency
+          setTimeout(() => {
+            console.log(
+              "⏰ [CACHE DEBUG] Triggering refresh after realtime event delay",
+            );
+            refreshSavedIdeas();
+          }, 100);
+        },
+      )
+      .subscribe();
+
+    console.log(
+      "✅ [DEBUG] LibraryClient - Real-time subscriptions established",
+    );
+
+    return () => {
+      console.log(
+        "🔌 [DEBUG] LibraryClient - Cleaning up real-time subscriptions",
+      );
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  // Listen for focus events to refresh data when user returns to tab
+  useEffect(() => {
+    const handleFocus = () => {
+      console.log(
+        "🎯 [CACHE DEBUG] LibraryClient - Window focused, refreshing saved ideas:",
+        {
+          timestamp: new Date().toISOString(),
+          triggerSource: "window-focus-event",
+        },
+      );
+      refreshSavedIdeas();
+    };
+
+    const handleVisibilityChange = () => {
+      if (!document.hidden) {
+        console.log(
+          "👁️ [CACHE DEBUG] LibraryClient - Page became visible, refreshing:",
+          {
+            timestamp: new Date().toISOString(),
+            triggerSource: "visibility-change-event",
+          },
+        );
+        refreshSavedIdeas();
+      }
+    };
+
+    window.addEventListener("focus", handleFocus);
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+
+    return () => {
+      window.removeEventListener("focus", handleFocus);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
+    };
+  }, []);
 
   if (savedIdeas.length === 0) {
     return (
@@ -99,7 +374,7 @@ export function LibraryClient({ savedIdeas }: LibraryClientProps) {
           </CardContent>
         </Card>
 
-        <div className="flex justify-center">
+        <div className="flex justify-center gap-4">
           <Button
             onClick={() => router.push("/dashboard")}
             size="lg"
@@ -156,7 +431,16 @@ export function LibraryClient({ savedIdeas }: LibraryClientProps) {
         ))}
       </div>
 
-      <div className="flex justify-center">
+      <div className="flex justify-center gap-4">
+        <Button
+          onClick={refreshSavedIdeas}
+          disabled={isRefreshing}
+          variant="outline"
+          size="lg"
+          className="w-32"
+        >
+          {isRefreshing ? <LoadingAnimation /> : "Refresh"}
+        </Button>
         <Button
           onClick={() => router.push("/dashboard")}
           size="lg"

@@ -134,6 +134,11 @@ export const signOutAction = async () => {
 };
 
 export const checkUserSubscription = async (userId: string) => {
+  console.log("🔄 [CACHE DEBUG] checkUserSubscription called:", {
+    userId,
+    timestamp: new Date().toISOString(),
+  });
+
   const supabase = await createClient();
 
   // Authentication check
@@ -143,9 +148,14 @@ export const checkUserSubscription = async (userId: string) => {
   } = await supabase.auth.getUser();
 
   if (authError || !user || user.id !== userId) {
-    console.error("Unauthorized subscription check attempt");
+    console.error("❌ [CACHE DEBUG] Unauthorized subscription check attempt");
     return false;
   }
+
+  console.log("🔍 [CACHE DEBUG] Fetching subscription data from Supabase:", {
+    userId,
+    timestamp: new Date().toISOString(),
+  });
 
   const { data: subscription, error } = await supabase
     .from("subscriptions")
@@ -155,10 +165,19 @@ export const checkUserSubscription = async (userId: string) => {
     .single();
 
   if (error) {
+    console.log("❌ [CACHE DEBUG] Subscription query error:", error);
     return false;
   }
 
-  return !!subscription;
+  const hasSubscription = !!subscription;
+  console.log("✅ [CACHE DEBUG] checkUserSubscription result:", {
+    userId,
+    hasSubscription,
+    subscriptionData: subscription,
+    timestamp: new Date().toISOString(),
+  });
+
+  return hasSubscription;
 };
 
 export const submitEmailAction = async (formData: FormData) => {

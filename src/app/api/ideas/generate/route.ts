@@ -601,9 +601,10 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      console.log("Attempting to save idea for user:", {
+      console.log("🔄 [DEBUG] Attempting to save idea for user:", {
         userId: authUser.user.id,
         email: authUser.user.email,
+        timestamp: new Date().toISOString(),
       });
 
       const { data, error: saveError } = await supabase
@@ -624,7 +625,7 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (saveError) {
-        console.error("Database save error:", saveError);
+        console.error("❌ [DEBUG] Database save error:", saveError);
         console.error("Save error details:", {
           code: saveError.code,
           message: saveError.message,
@@ -657,7 +658,12 @@ export async function POST(request: NextRequest) {
       }
 
       savedIdea = data;
-      console.log("Successfully saved idea:", { id: savedIdea.id, email });
+      console.log("✅ [DEBUG] Successfully saved idea to generated_ideas:", {
+        id: savedIdea.id,
+        email,
+        title: savedIdea.title,
+        timestamp: new Date().toISOString(),
+      });
     } catch (dbError) {
       console.error("Database operation error:", dbError);
       return NextResponse.json(
@@ -671,7 +677,11 @@ export async function POST(request: NextRequest) {
 
     // Step 5: Automatically save to library with enhanced error handling
     try {
-      console.log("Attempting to save to library for user:", email);
+      console.log("🔄 [DEBUG] Attempting to save to library for user:", {
+        email,
+        ideaId: savedIdea.id,
+        timestamp: new Date().toISOString(),
+      });
 
       const { error: librarySaveError } = await supabase
         .from("saved_ideas")
@@ -684,7 +694,7 @@ export async function POST(request: NextRequest) {
         });
 
       if (librarySaveError) {
-        console.error("Library save error:", librarySaveError);
+        console.error("❌ [DEBUG] Library save error:", librarySaveError);
         console.error("Library save error details:", {
           code: librarySaveError.code,
           message: librarySaveError.message,
@@ -693,23 +703,58 @@ export async function POST(request: NextRequest) {
         });
         // Don't fail the request if library save fails, just log it
       } else {
-        console.log("Successfully saved to library:", {
+        console.log("✅ [DEBUG] Successfully saved to saved_ideas library:", {
           ideaId: savedIdea.id,
           email,
+          timestamp: new Date().toISOString(),
         });
       }
     } catch (libraryError) {
-      console.error("Library operation error:", libraryError);
+      console.error("❌ [DEBUG] Library operation error:", libraryError);
       // Don't fail the request if library save fails, just log it
     }
 
-    // Revalidate the library page to ensure fresh data is shown
+    // Comprehensive cache invalidation across all layers
     try {
-      revalidatePath("/library");
-      revalidatePath("/dashboard");
-      console.log("Successfully revalidated library and dashboard paths");
+      console.log(
+        "🔄 [CACHE DEBUG] Starting comprehensive cache invalidation:",
+        {
+          timestamp: new Date().toISOString(),
+          paths: ["/library", "/dashboard", "/"],
+          cacheInvalidationStrategy: "multi-layer",
+        },
+      );
+
+      // Next.js cache invalidation
+      revalidatePath("/library", "page");
+      console.log("✅ [CACHE DEBUG] Revalidated /library page");
+
+      revalidatePath("/dashboard", "page");
+      console.log("✅ [CACHE DEBUG] Revalidated /dashboard page");
+
+      revalidatePath("/", "layout");
+      console.log("✅ [CACHE DEBUG] Revalidated / layout");
+
+      // Force revalidation of all related paths
+      revalidatePath("/library", "layout");
+      console.log("✅ [CACHE DEBUG] Revalidated /library layout");
+
+      revalidatePath("/dashboard", "layout");
+      console.log("✅ [CACHE DEBUG] Revalidated /dashboard layout");
+
+      console.log(
+        "✅ [CACHE DEBUG] Successfully completed all cache invalidation calls",
+        {
+          timestamp: new Date().toISOString(),
+          invalidatedPaths: ["/library", "/dashboard", "/"],
+          invalidatedLayouts: ["/library", "/dashboard", "/"],
+        },
+      );
     } catch (revalidateError) {
-      console.error("Error revalidating paths:", revalidateError);
+      console.error(
+        "❌ [CACHE DEBUG] Error in cache invalidation:",
+        revalidateError,
+      );
       // Don't fail the request if revalidation fails
     }
 
