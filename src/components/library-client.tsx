@@ -184,116 +184,170 @@ export function LibraryClient({}: LibraryClientProps = {}) {
 
   if (!ideas || ideas.length === 0) {
     return (
-      <div className="space-y-8">
-        <Card className="bg-white border-gray-200">
-          <CardContent className="pt-6">
-            <div className="text-center py-12">
-              <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
-              <h3 className="text-xl font-medium text-gray-900 mb-2">
-                No saved ideas yet
-              </h3>
-              <p className="text-gray-600 mb-6">
-                Generate your first startup idea or refresh if you just created
-                one.
-              </p>
-            </div>
-          </CardContent>
-        </Card>
+      <>
+        <DashboardNavbar user={user} isSubscribed={isSubscribed} />
+        <div className="min-h-screen" style={{ backgroundColor: "#FEFDFB" }}>
+          <main className="w-full pt-8">
+            <div className="container mx-auto px-4 py-8">
+              <div className="space-y-6">
+                {/* Header */}
+                <div className="space-y-2">
+                  <h1
+                    className="text-3xl md:text-3xl font-bold flex items-center gap-3"
+                    style={{ fontSize: "24px" }}
+                  >
+                    <BookOpen className="w-8 h-8 text-black" />
+                    <span className="md:text-3xl" style={{ fontSize: "24px" }}>
+                      Your Ideas Library
+                    </span>
+                  </h1>
+                  <p className="text-gray-600">
+                    All your saved startup ideas in one place
+                  </p>
+                </div>
 
-        <div className="flex justify-center gap-4">
-          <Button
-            onClick={() => window.location.reload()}
-            variant="outline"
-            size="lg"
-            className="bg-white border-2 border-[#D4714B] text-[#D4714B] hover:bg-[#D4714B] hover:text-white font-medium py-3 px-6 rounded-md transition-colors duration-200 flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh Page
-          </Button>
-          <Button
-            onClick={() => router.push("/dashboard")}
-            size="lg"
-            className="bg-black hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-md transition-colors duration-200"
-          >
-            Generate more ideas
-          </Button>
+                {/* No Ideas Content */}
+                <div className="space-y-8">
+                  <Card className="bg-white border-gray-200">
+                    <CardContent className="pt-6">
+                      <div className="text-center py-12">
+                        <BookOpen className="w-16 h-16 mx-auto mb-4 text-gray-300" />
+                        <h3 className="text-xl font-medium text-gray-900 mb-2">
+                          No saved ideas yet
+                        </h3>
+                        <p className="text-gray-600 mb-6">
+                          Generate your first startup idea or refresh if you just created
+                          one.
+                        </p>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  <div className="flex justify-center gap-4">
+                    <Button
+                      onClick={() => window.location.reload()}
+                      variant="outline"
+                      size="lg"
+                      className="bg-white border-2 border-[#D4714B] text-[#D4714B] hover:bg-[#D4714B] hover:text-white font-medium py-3 px-6 rounded-md transition-colors duration-200 flex items-center gap-2"
+                    >
+                      <RefreshCw className="w-4 h-4" />
+                      Refresh Page
+                    </Button>
+                    <Button
+                      onClick={() => router.push("/dashboard")}
+                      size="lg"
+                      className="bg-black hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-md transition-colors duration-200"
+                    >
+                      Generate more ideas
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </main>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
     <>
       <DashboardNavbar user={user} isSubscribed={isSubscribed} />
-      <div className="space-y-8">
-        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-          {ideas && ideas.length > 0 ? (
-            ideas.map((idea) => (
-              <Card
-                key={idea.id}
-                className="bg-white border-gray-200 hover:shadow-md transition-shadow flex flex-col h-full"
-              >
-                <CardHeader className="flex-shrink-0">
-                  <CardTitle className="text-lg font-medium text-gray-900 line-clamp-2 text-center">
-                    {idea.title}
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="flex flex-col flex-grow">
-                  <div className="flex flex-col h-full">
-                    <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 mb-4">
-                      {idea.description}
-                    </p>
-                    <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                      <span>
-                        Saved on{" "}
-                        {new Date(idea.created_at).toLocaleDateString("en-US", {
-                          month: "2-digit",
-                          day: "2-digit",
-                          year: "numeric",
-                        })}
-                      </span>
-                      {idea.is_liked && (
-                        <span className="text-red-500">♥</span>
-                      )}
-                    </div>
-                    <div className="mt-auto">
-                      <Button
-                        onClick={() => handleViewDetails(idea)}
-                        variant="outline"
-                        className="w-full"
-                      >
-                        View details
-                      </Button>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            ))
-          ) : (
-            <div className="col-span-full text-center py-8">
-              <p className="text-gray-500">No saved ideas found</p>
-            </div>
-          )}
-        </div>
+      <div className="min-h-screen" style={{ backgroundColor: "#FEFDFB" }}>
+        <main className="w-full pt-8">
+          <div className="container mx-auto px-4 py-8">
+            <div className="space-y-6">
+              {/* Header */}
+              <div className="space-y-2">
+                <h1
+                  className="text-3xl md:text-3xl font-bold flex items-center gap-3"
+                  style={{ fontSize: "24px" }}
+                >
+                  <BookOpen className="w-8 h-8 text-black" />
+                  <span className="md:text-3xl" style={{ fontSize: "24px" }}>
+                    Your Ideas Library
+                  </span>
+                </h1>
+                <p className="text-gray-600">
+                  All your saved startup ideas in one place
+                </p>
+              </div>
 
-        <div className="flex justify-center gap-4">
-          <Button
-            onClick={() => window.location.reload()}
-            variant="outline"
-            size="lg"
-            className="bg-white border-2 border-[#D4714B] text-[#D4714B] hover:bg-[#D4714B] hover:text-white font-medium py-3 px-6 rounded-md transition-colors duration-200 flex items-center gap-2"
-          >
-            <RefreshCw className="w-4 h-4" />
-            Refresh Page
-          </Button>
-          <Button
-            onClick={() => router.push("/dashboard")}
-            size="lg"
-            className="bg-black hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-md transition-colors duration-200"
-          >
-            Generate more ideas
-          </Button>
-        </div>
+              {/* Ideas Grid */}
+              <div className="space-y-8">
+                <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                  {ideas && ideas.length > 0 ? (
+                    ideas.map((idea) => (
+                      <Card
+                        key={idea.id}
+                        className="bg-white border-gray-200 hover:shadow-md transition-shadow flex flex-col h-full"
+                      >
+                        <CardHeader className="flex-shrink-0">
+                          <CardTitle className="text-lg font-medium text-gray-900 line-clamp-2 text-center">
+                            {idea.title}
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="flex flex-col flex-grow">
+                          <div className="flex flex-col h-full">
+                            <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 mb-4">
+                              {idea.description}
+                            </p>
+                            <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                              <span>
+                                Saved on{" "}
+                                {new Date(idea.created_at).toLocaleDateString("en-US", {
+                                  month: "2-digit",
+                                  day: "2-digit",
+                                  year: "numeric",
+                                })}
+                              </span>
+                              {idea.is_liked && (
+                                <span className="text-red-500">♥</span>
+                              )}
+                            </div>
+                            <div className="mt-auto">
+                              <Button
+                                onClick={() => handleViewDetails(idea)}
+                                variant="outline"
+                                className="w-full"
+                              >
+                                View details
+                              </Button>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    ))
+                  ) : (
+                    <div className="col-span-full text-center py-8">
+                      <p className="text-gray-500">No saved ideas found</p>
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex justify-center gap-4">
+                  <Button
+                    onClick={() => window.location.reload()}
+                    variant="outline"
+                    size="lg"
+                    className="bg-white border-2 border-[#D4714B] text-[#D4714B] hover:bg-[#D4714B] hover:text-white font-medium py-3 px-6 rounded-md transition-colors duration-200 flex items-center gap-2"
+                  >
+                    <RefreshCw className="w-4 h-4" />
+                    Refresh Page
+                  </Button>
+                  <Button
+                    onClick={() => router.push("/dashboard")}
+                    size="lg"
+                    className="bg-black hover:bg-gray-800 text-white font-medium py-3 px-6 rounded-md transition-colors duration-200"
+                  >
+                    Generate more ideas
+                  </Button>
+                </div>
+              </div>
+            </div>
+          </div>
+        </main>
+      </div>
 
         {/* Details Modal */}
         <Dialog open={showDetailsModal} onOpenChange={setShowDetailsModal}>
