@@ -570,8 +570,17 @@ export function LibraryClient({
               <h3 className="text-xl font-medium text-gray-900 mb-2">
                 No saved ideas yet
               </h3>
-              <p className="text-gray-600 mb-6">
+              <p className="text-gray-600 mb-4">
                 Your saved startup ideas will appear here.
+              </p>
+              <p className="text-sm text-gray-500 mb-6">
+                If you just generated an idea, please{" "}
+                <button
+                  onClick={() => window.location.reload()}
+                  className="text-blue-600 hover:text-blue-800 underline cursor-pointer"
+                >
+                  refresh the page
+                </button>
               </p>
             </div>
           </CardContent>
