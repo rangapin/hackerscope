@@ -288,19 +288,8 @@ export default function IdeaGenerator({
       // Add a small delay to ensure the idea is fully saved
       await new Promise((resolve) => setTimeout(resolve, 1000));
 
-      // Hide loading overlay
-      setIsGenerating(false);
-      setShowFullScreenLoading(false);
-
-      // Mark idea generation as complete
-      setIdeaGenerationState(false);
-
-      // Call the callback to refresh the library if provided
-      if (onIdeaGenerated) {
-        setTimeout(() => {
-          onIdeaGenerated();
-        }, 500);
-      }
+      // Automatically refresh the page to show the new idea
+      window.location.reload();
     } catch (error) {
       console.error("Error generating idea:", error);
       toast({

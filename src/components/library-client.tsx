@@ -371,7 +371,7 @@ export function LibraryClient({
               refreshSavedIdeas();
             } else {
               console.log(
-                "🚫 [BACKGROUND FETCH DISABLED] Skipping realtime refresh - idea generation in progress or recently completed",
+                "🚫 [BACKGROUND FETCH DISABLED] Skipping realtime refresh - idea generation in progress or recently completed (5 second block)",
               );
             }
           }, 100);
@@ -405,7 +405,7 @@ export function LibraryClient({
               refreshSavedIdeas();
             } else {
               console.log(
-                "🚫 [BACKGROUND FETCH DISABLED] Skipping realtime refresh - idea generation in progress or recently completed",
+                "🚫 [BACKGROUND FETCH DISABLED] Skipping realtime refresh - idea generation in progress or recently completed (5 second block)",
               );
             }
           }, 100);
