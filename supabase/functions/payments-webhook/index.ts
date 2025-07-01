@@ -63,39 +63,86 @@ async function logAndStoreWebhookEvent(
   }
 }
 
-async function updateSubscriptionStatus(
+// Helper function to ensure user exists in public.users table
+async function ensureUserExists(
   supabaseClient: any,
-  stripeId: string,
-  status: string,
-): Promise<void> {
-  const { error } = await supabaseClient
-    .from("subscriptions")
-    .update({ status })
-    .eq("stripe_id", stripeId);
+  userId: string,
+  customerEmail?: string,
+): Promise<string> {
+  // First check if user exists in public.users
+  const { data: existingUser } = await supabaseClient
+    .from("users")
+    .select("user_id")
+    .eq("user_id", userId)
+    .single();
 
-  if (error) {
-    console.error("Error updating subscription status:", error);
-    throw error;
+  if (existingUser) {
+    return userId;
   }
 
-  // Also update user subscription_status if needed
-  if (status === "canceled" || status === "incomplete_expired") {
-    const { data: subscription } = await supabaseClient
-      .from("subscriptions")
-      .select("user_id")
-      .eq("stripe_id", stripeId)
-      .single();
+  // User doesn't exist, try to create from auth.users
+  const { data: authUser, error: authError } =
+    await supabaseClient.auth.admin.getUserById(userId);
 
-    if (subscription?.user_id) {
-      await supabaseClient
-        .from("users")
-        .update({
-          subscription: null,
-          subscription_status: "free",
-        })
-        .eq("user_id", subscription.user_id);
+  if (!authError && authUser?.user) {
+    const { error: createError } = await supabaseClient.from("users").insert({
+      id: authUser.user.id,
+      user_id: authUser.user.id,
+      email: authUser.user.email || customerEmail,
+      name:
+        authUser.user.user_metadata?.name ||
+        authUser.user.user_metadata?.full_name ||
+        (authUser.user.email || customerEmail)?.split("@")[0],
+      full_name: authUser.user.user_metadata?.full_name,
+      avatar_url: authUser.user.user_metadata?.avatar_url,
+      token_identifier: authUser.user.email || customerEmail,
+      subscription: "premium",
+      subscription_status: "premium",
+      created_at: authUser.user.created_at,
+      updated_at: new Date().toISOString(),
+    });
+
+    if (createError) {
+      console.error("Error creating user from auth.users:", createError);
+      throw new Error(`Failed to create user: ${createError.message}`);
     }
+
+    console.log(
+      "Successfully created user from auth.users with premium status:",
+      userId,
+    );
+    return userId;
   }
+
+  // If auth.users lookup fails and we have customer email, create minimal user record
+  if (customerEmail) {
+    const { error: createError } = await supabaseClient.from("users").insert({
+      id: userId,
+      user_id: userId,
+      email: customerEmail,
+      name: customerEmail.split("@")[0],
+      token_identifier: customerEmail,
+      subscription: "premium",
+      subscription_status: "premium",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    });
+
+    if (createError) {
+      console.error("Error creating user from customer email:", createError);
+      throw new Error(`Failed to create user: ${createError.message}`);
+    }
+
+    console.log(
+      "Successfully created user from customer email with premium status:",
+      userId,
+    );
+    return userId;
+  }
+
+  throw new Error(
+    "Unable to create user - no auth.users record or customer email available",
+  );
 }
 
 // Event handlers
@@ -103,101 +150,68 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
   const subscription = event.data.object;
   console.log("Handling subscription created:", subscription.id);
 
-  // Try to get user information
+  // Get user information from metadata or customer
   let userId = subscription.metadata?.user_id || subscription.metadata?.userId;
-  let userEmail = null;
+  let customerEmail = null;
 
+  // If no userId in metadata, get it from customer
   if (!userId) {
     try {
       const customer = await stripe.customers.retrieve(subscription.customer);
 
-      // Type guard to check if customer is not deleted and has email
       if (customer.deleted || !("email" in customer) || !customer.email) {
-        throw new Error("Customer not found or deleted");
+        throw new Error("Customer not found or has no email");
       }
 
-      userEmail = customer.email;
+      customerEmail = customer.email;
 
-      // First try to find user in public.users
+      // Try to find existing user by email
       const { data: userData } = await supabaseClient
         .from("users")
         .select("user_id")
         .eq("email", customer.email)
         .single();
 
-      userId = userData?.user_id;
-
-      // If not found in public.users, try to find in auth.users and create public.users record
-      if (!userId) {
-        console.log(
-          "User not found in public.users, checking auth.users for:",
-          customer.email,
+      if (userData) {
+        userId = userData.user_id;
+      } else {
+        // Check auth.users for this email
+        const { data: authUsers } = await supabaseClient.auth.admin.listUsers();
+        const authUser = authUsers?.users?.find(
+          (u) => u.email === customer.email,
         );
 
-        // Try to find user in auth.users by email
-        const { data: authUsers, error: authError } =
-          await supabaseClient.auth.admin.listUsers();
-
-        if (!authError && authUsers?.users) {
-          const authUser = authUsers.users.find(
-            (u) => u.email === customer.email,
-          );
-
-          if (authUser) {
-            console.log(
-              "Found user in auth.users, creating public.users record for:",
-              authUser.email,
-            );
-            userId = authUser.id;
-
-            // Create user in public.users table
-            const { error: createUserError } = await supabaseClient
-              .from("users")
-              .insert({
-                id: authUser.id,
-                user_id: authUser.id,
-                email: authUser.email,
-                name:
-                  authUser.user_metadata?.name ||
-                  authUser.user_metadata?.full_name ||
-                  authUser.email.split("@")[0],
-                full_name: authUser.user_metadata?.full_name,
-                avatar_url: authUser.user_metadata?.avatar_url,
-                token_identifier: authUser.email,
-                subscription: "premium",
-                subscription_status: "premium",
-                created_at: authUser.created_at,
-                updated_at: new Date().toISOString(),
-              });
-
-            if (createUserError) {
-              console.error(
-                "Error creating user in public.users during subscription creation:",
-                createUserError,
-              );
-            } else {
-              console.log(
-                "Successfully created user in public.users with premium status during subscription creation:",
-                userId,
-              );
-            }
-          }
-        }
-
-        if (!userId) {
-          throw new Error("User not found in auth.users or public.users");
+        if (authUser) {
+          userId = authUser.id;
+        } else {
+          // Create a new user ID if no existing user found
+          userId = crypto.randomUUID();
         }
       }
     } catch (error) {
-      console.error("Unable to find associated user:", error);
+      console.error("Error retrieving customer:", error);
       return new Response(
-        JSON.stringify({ error: "Unable to find associated user" }),
+        JSON.stringify({ error: "Unable to retrieve customer information" }),
         {
           status: 400,
           headers: { ...corsHeaders, "Content-Type": "application/json" },
         },
       );
     }
+  }
+
+  // Ensure user exists in public.users table
+  try {
+    await ensureUserExists(supabaseClient, userId, customerEmail);
+  } catch (error) {
+    console.error("Error ensuring user exists:", error);
+    return new Response(
+      JSON.stringify({ error: "Failed to create or find user" }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
   }
 
   const subscriptionData: SubscriptionData = {
@@ -250,57 +264,14 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
     );
   }
 
-  // Update user subscription status
+  // Update user subscription status to premium if subscription is active
   if (subscription.status === "active") {
-    console.log(
-      "Attempting to update user subscription status for user:",
-      userId,
-    );
-
-    // First, check if user exists
-    const { data: existingUser, error: userCheckError } = await supabaseClient
-      .from("users")
-      .select("user_id, email, subscription_status")
-      .eq("user_id", userId)
-      .single();
-
-    if (userCheckError) {
-      console.error("Error checking user existence:", userCheckError);
-      console.log("Attempting to find user by email from customer data...");
-
-      // Try to find user by email if direct user_id lookup fails
-      try {
-        const customer = await stripe.customers.retrieve(subscription.customer);
-        if (!customer.deleted && "email" in customer && customer.email) {
-          const { data: userByEmail, error: emailLookupError } =
-            await supabaseClient
-              .from("users")
-              .select("user_id, email, subscription_status")
-              .eq("email", customer.email)
-              .single();
-
-          if (!emailLookupError && userByEmail) {
-            console.log("Found user by email:", userByEmail.email);
-            userId = userByEmail.user_id;
-          }
-        }
-      } catch (customerError) {
-        console.error("Error retrieving customer:", customerError);
-      }
-    } else {
-      console.log(
-        "Found existing user:",
-        existingUser.email,
-        "Current status:",
-        existingUser.subscription_status,
-      );
-    }
-
     const { error: userUpdateError } = await supabaseClient
       .from("users")
       .update({
         subscription: "premium",
         subscription_status: "premium",
+        stripe_customer_id: subscription.customer,
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", userId);
@@ -310,30 +281,11 @@ async function handleSubscriptionCreated(supabaseClient: any, event: any) {
         "Error updating user subscription status:",
         userUpdateError,
       );
-      console.error("Failed to update user:", userId);
     } else {
       console.log(
         "Successfully updated user subscription status to premium for user:",
         userId,
       );
-
-      // Verify the update worked
-      const { data: updatedUser, error: verifyError } = await supabaseClient
-        .from("users")
-        .select("user_id, email, subscription_status, subscription")
-        .eq("user_id", userId)
-        .single();
-
-      if (!verifyError && updatedUser) {
-        console.log(
-          "Verified user update - Status:",
-          updatedUser.subscription_status,
-          "Subscription:",
-          updatedUser.subscription,
-        );
-      } else {
-        console.error("Failed to verify user update:", verifyError);
-      }
     }
   }
 
@@ -350,6 +302,7 @@ async function handleSubscriptionUpdated(supabaseClient: any, event: any) {
   const subscription = event.data.object;
   console.log("Handling subscription updated:", subscription.id);
 
+  // Update subscription in database
   const { error } = await supabaseClient
     .from("subscriptions")
     .update({
@@ -382,21 +335,16 @@ async function handleSubscriptionUpdated(supabaseClient: any, event: any) {
     .single();
 
   if (subscriptionData?.user_id) {
-    const userSubscriptionStatus =
-      subscription.status === "active" ? "premium" : null;
-    const subscriptionStatusField =
-      subscription.status === "active" ? "premium" : "free";
-
-    console.log(
-      `Updating user ${subscriptionData.user_id} subscription status to:`,
-      subscriptionStatusField,
-    );
+    const isActive = subscription.status === "active";
+    const userSubscription = isActive ? "premium" : null;
+    const subscriptionStatus = isActive ? "premium" : "free";
 
     const { error: userUpdateError } = await supabaseClient
       .from("users")
       .update({
-        subscription: userSubscriptionStatus,
-        subscription_status: subscriptionStatusField,
+        subscription: userSubscription,
+        subscription_status: subscriptionStatus,
+        stripe_customer_id: subscription.customer,
         updated_at: new Date().toISOString(),
       })
       .eq("user_id", subscriptionData.user_id);
@@ -408,30 +356,9 @@ async function handleSubscriptionUpdated(supabaseClient: any, event: any) {
       );
     } else {
       console.log(
-        `Successfully updated user subscription status to ${subscriptionStatusField} for user:`,
+        `Successfully updated user subscription status to ${subscriptionStatus} for user:`,
         subscriptionData.user_id,
       );
-
-      // Verify the update worked
-      const { data: updatedUser, error: verifyError } = await supabaseClient
-        .from("users")
-        .select("user_id, email, subscription_status, subscription")
-        .eq("user_id", subscriptionData.user_id)
-        .single();
-
-      if (!verifyError && updatedUser) {
-        console.log(
-          "Verified user update in subscription_updated - Status:",
-          updatedUser.subscription_status,
-          "Subscription:",
-          updatedUser.subscription,
-        );
-      } else {
-        console.error(
-          "Failed to verify user update in subscription_updated:",
-          verifyError,
-        );
-      }
     }
   }
 
@@ -449,17 +376,33 @@ async function handleSubscriptionDeleted(supabaseClient: any, event: any) {
   console.log("Handling subscription deleted:", subscription.id);
 
   try {
-    await updateSubscriptionStatus(supabaseClient, subscription.id, "canceled");
+    // Update subscription status to canceled
+    await supabaseClient
+      .from("subscriptions")
+      .update({ status: "canceled" })
+      .eq("stripe_id", subscription.id);
 
-    // If we have email in metadata, update user's subscription status
-    if (subscription?.metadata?.email) {
+    // Get user_id from subscription and update user status to free
+    const { data: subscriptionData } = await supabaseClient
+      .from("subscriptions")
+      .select("user_id")
+      .eq("stripe_id", subscription.id)
+      .single();
+
+    if (subscriptionData?.user_id) {
       await supabaseClient
         .from("users")
         .update({
           subscription: null,
           subscription_status: "free",
+          updated_at: new Date().toISOString(),
         })
-        .eq("email", subscription.metadata.email);
+        .eq("user_id", subscriptionData.user_id);
+
+      console.log(
+        "Successfully downgraded user to free:",
+        subscriptionData.user_id,
+      );
     }
 
     return new Response(
@@ -484,15 +427,11 @@ async function handleSubscriptionDeleted(supabaseClient: any, event: any) {
 async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
   const session = event.data.object;
   console.log("Handling checkout session completed:", session.id);
-  console.log("Full session data:", JSON.stringify(session, null, 2));
 
   const subscriptionId =
     typeof session.subscription === "string"
       ? session.subscription
       : session.subscription?.id;
-
-  console.log("Extracted subscriptionId:", subscriptionId);
-  console.log("Session metadata:", JSON.stringify(session.metadata, null, 2));
 
   if (!subscriptionId) {
     console.log("No subscription ID found in checkout session");
@@ -506,236 +445,90 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
   }
 
   try {
-    console.log(
-      "Attempting to update subscription in Stripe with ID:",
-      subscriptionId,
-    );
-    console.log("Metadata to be added:", {
-      ...session.metadata,
-      checkoutSessionId: session.id,
-    });
-
-    // Fetch the current subscription from Stripe to get the latest status
+    // Get the subscription from Stripe
     const stripeSubscription =
       await stripe.subscriptions.retrieve(subscriptionId);
-    console.log(
-      "Retrieved Stripe subscription status:",
-      stripeSubscription.status,
-    );
 
-    const updatedStripeSubscription = await stripe.subscriptions.update(
-      subscriptionId,
-      {
-        metadata: {
-          ...session.metadata,
-          checkoutSessionId: session.id,
-        },
+    // Get user ID from session metadata
+    let userId = session.metadata?.userId || session.metadata?.user_id;
+    let customerEmail = null;
+
+    // If no userId in metadata, get customer email and find/create user
+    if (!userId) {
+      const customer = await stripe.customers.retrieve(
+        stripeSubscription.customer,
+      );
+      if (!customer.deleted && "email" in customer && customer.email) {
+        customerEmail = customer.email;
+
+        // Try to find existing user by email
+        const { data: userData } = await supabaseClient
+          .from("users")
+          .select("user_id")
+          .eq("email", customer.email)
+          .single();
+
+        if (userData) {
+          userId = userData.user_id;
+        } else {
+          // Check auth.users for this email
+          const { data: authUsers } =
+            await supabaseClient.auth.admin.listUsers();
+          const authUser = authUsers?.users?.find(
+            (u) => u.email === customer.email,
+          );
+
+          if (authUser) {
+            userId = authUser.id;
+          } else {
+            userId = crypto.randomUUID();
+          }
+        }
+      }
+    }
+
+    if (!userId) {
+      throw new Error("Unable to determine user ID from session or customer");
+    }
+
+    // Ensure user exists in public.users table with premium status
+    await ensureUserExists(supabaseClient, userId, customerEmail);
+
+    // Update Stripe subscription metadata
+    await stripe.subscriptions.update(subscriptionId, {
+      metadata: {
+        ...session.metadata,
+        checkoutSessionId: session.id,
+        userId: userId,
       },
-    );
+    });
 
-    console.log(
-      "Successfully updated Stripe subscription:",
-      updatedStripeSubscription.id,
-    );
-    console.log(
-      "Updated Stripe metadata:",
-      JSON.stringify(updatedStripeSubscription.metadata, null, 2),
-    );
-
-    console.log(
-      "Attempting to update subscription in Supabase with stripe_id:",
-      subscriptionId,
-    );
-    console.log(
-      "User ID being set:",
-      session.metadata?.userId || session.metadata?.user_id,
-    );
-
-    const supabaseUpdateResult = await supabaseClient
+    // Update subscription in Supabase
+    await supabaseClient
       .from("subscriptions")
       .update({
-        metadata: {
-          ...session.metadata,
-          checkoutSessionId: session.id,
-        },
-        user_id: session.metadata?.userId || session.metadata?.user_id,
-        status: stripeSubscription.status, // Update the status from Stripe
+        metadata: { ...session.metadata, checkoutSessionId: session.id },
+        user_id: userId,
+        status: stripeSubscription.status,
         current_period_start: stripeSubscription.current_period_start,
         current_period_end: stripeSubscription.current_period_end,
         cancel_at_period_end: stripeSubscription.cancel_at_period_end,
       })
       .eq("stripe_id", subscriptionId);
 
-    console.log(
-      "Supabase update result:",
-      JSON.stringify(supabaseUpdateResult, null, 2),
-    );
-
-    if (supabaseUpdateResult.error) {
-      console.error(
-        "Error updating Supabase subscription:",
-        supabaseUpdateResult.error,
-      );
-      throw new Error(
-        `Supabase update failed: ${supabaseUpdateResult.error.message}`,
-      );
-    }
-
-    // Update user subscription status to premium if subscription is active
-    if (
-      stripeSubscription.status === "active" &&
-      (session.metadata?.userId || session.metadata?.user_id)
-    ) {
-      const userId = session.metadata?.userId || session.metadata?.user_id;
-      console.log(
-        "Checkout completion - updating user subscription status for:",
-        userId,
-      );
-
-      // First, check if user exists in public.users table
-      const { data: existingUser, error: userCheckError } = await supabaseClient
+    // Update user to premium status
+    if (stripeSubscription.status === "active") {
+      await supabaseClient
         .from("users")
-        .select("user_id, email, subscription_status")
-        .eq("user_id", userId)
-        .single();
+        .update({
+          subscription: "premium",
+          subscription_status: "premium",
+          stripe_customer_id: stripeSubscription.customer,
+          updated_at: new Date().toISOString(),
+        })
+        .eq("user_id", userId);
 
-      if (userCheckError && userCheckError.code === "PGRST116") {
-        // User doesn't exist in public.users, let's create them from auth.users
-        console.log(
-          "User not found in public.users, creating from auth.users for:",
-          userId,
-        );
-
-        // Get user data from auth.users
-        const { data: authUser, error: authUserError } =
-          await supabaseClient.auth.admin.getUserById(userId);
-
-        if (authUserError || !authUser.user) {
-          console.error("Error fetching user from auth.users:", authUserError);
-
-          // Try to get customer email from Stripe as fallback
-          try {
-            const customer = await stripe.customers.retrieve(
-              stripeSubscription.customer,
-            );
-            if (!customer.deleted && "email" in customer && customer.email) {
-              console.log(
-                "Creating user record with Stripe customer email:",
-                customer.email,
-              );
-
-              const { error: createUserError } = await supabaseClient
-                .from("users")
-                .insert({
-                  id: userId,
-                  user_id: userId,
-                  email: customer.email,
-                  name: customer.name || customer.email.split("@")[0],
-                  full_name: customer.name,
-                  token_identifier: customer.email,
-                  subscription: "premium",
-                  subscription_status: "premium",
-                  created_at: new Date().toISOString(),
-                  updated_at: new Date().toISOString(),
-                });
-
-              if (createUserError) {
-                console.error(
-                  "Error creating user from Stripe customer data:",
-                  createUserError,
-                );
-              } else {
-                console.log(
-                  "Successfully created user from Stripe customer data with premium status:",
-                  userId,
-                );
-              }
-            }
-          } catch (customerError) {
-            console.error("Error retrieving Stripe customer:", customerError);
-          }
-        } else {
-          // Create user in public.users table from auth.users data
-          const { error: createUserError } = await supabaseClient
-            .from("users")
-            .insert({
-              id: authUser.user.id,
-              user_id: authUser.user.id,
-              email: authUser.user.email,
-              name:
-                authUser.user.user_metadata?.name ||
-                authUser.user.user_metadata?.full_name ||
-                authUser.user.email?.split("@")[0],
-              full_name: authUser.user.user_metadata?.full_name,
-              avatar_url: authUser.user.user_metadata?.avatar_url,
-              token_identifier: authUser.user.email,
-              subscription: "premium",
-              subscription_status: "premium",
-              created_at: authUser.user.created_at,
-              updated_at: new Date().toISOString(),
-            });
-
-          if (createUserError) {
-            console.error(
-              "Error creating user in public.users:",
-              createUserError,
-            );
-          } else {
-            console.log(
-              "Successfully created user in public.users with premium status:",
-              userId,
-            );
-          }
-        }
-      } else if (!userCheckError && existingUser) {
-        // User exists, update their subscription status
-        const { error: userUpdateError } = await supabaseClient
-          .from("users")
-          .update({
-            subscription: "premium",
-            subscription_status: "premium",
-            updated_at: new Date().toISOString(),
-          })
-          .eq("user_id", userId);
-
-        if (userUpdateError) {
-          console.error(
-            "Error updating user subscription status in checkout completion:",
-            userUpdateError,
-          );
-        } else {
-          console.log(
-            "Successfully updated existing user subscription status to premium in checkout completion for user:",
-            userId,
-          );
-        }
-      } else {
-        console.error(
-          "Unexpected error checking user existence:",
-          userCheckError,
-        );
-      }
-
-      // Verify the final user state
-      const { data: finalUser, error: verifyError } = await supabaseClient
-        .from("users")
-        .select("user_id, email, subscription_status, subscription")
-        .eq("user_id", userId)
-        .single();
-
-      if (!verifyError && finalUser) {
-        console.log(
-          "Verified final user state in checkout completion - Status:",
-          finalUser.subscription_status,
-          "Subscription:",
-          finalUser.subscription,
-        );
-      } else {
-        console.error(
-          "Failed to verify final user state in checkout completion:",
-          verifyError,
-        );
-      }
+      console.log("Successfully upgraded user to premium:", userId);
     }
 
     return new Response(
@@ -750,13 +543,6 @@ async function handleCheckoutSessionCompleted(supabaseClient: any, event: any) {
     );
   } catch (error) {
     console.error("Error processing checkout completion:", error);
-    console.error(
-      "Error details:",
-      JSON.stringify(error, Object.getOwnPropertyNames(error)),
-    );
-    if (error instanceof Error) {
-      console.error("Error stack:", error.stack);
-    }
     return new Response(
       JSON.stringify({
         error: "Failed to process checkout completion",
@@ -854,11 +640,10 @@ async function handleInvoicePaymentFailed(supabaseClient: any, event: any) {
     await supabaseClient.from("webhook_events").insert(webhookData);
 
     if (subscriptionId) {
-      await updateSubscriptionStatus(
-        supabaseClient,
-        subscriptionId,
-        "past_due",
-      );
+      await supabaseClient
+        .from("subscriptions")
+        .update({ status: "past_due" })
+        .eq("stripe_id", subscriptionId);
     }
 
     return new Response(JSON.stringify({ message: "Invoice payment failed" }), {
@@ -875,6 +660,122 @@ async function handleInvoicePaymentFailed(supabaseClient: any, event: any) {
       },
     );
   }
+}
+
+async function handleChargeSucceeded(supabaseClient: any, event: any) {
+  const charge = event.data.object;
+  console.log("Handling charge succeeded:", charge.id);
+
+  try {
+    // Skip if this charge is part of a subscription (handled by subscription events)
+    if (charge.invoice) {
+      console.log("Charge is part of subscription, skipping");
+      return new Response(
+        JSON.stringify({ message: "Charge is part of subscription" }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    let userId = charge.metadata?.userId || charge.metadata?.user_id;
+    let customerEmail = null;
+
+    // If no userId in metadata, get customer email and find/create user
+    if (!userId && charge.customer) {
+      const customer = await stripe.customers.retrieve(charge.customer);
+      if (!customer.deleted && "email" in customer && customer.email) {
+        customerEmail = customer.email;
+
+        // Try to find existing user by email
+        const { data: userData } = await supabaseClient
+          .from("users")
+          .select("user_id")
+          .eq("email", customer.email)
+          .single();
+
+        if (userData) {
+          userId = userData.user_id;
+        } else {
+          // Check auth.users for this email
+          const { data: authUsers } =
+            await supabaseClient.auth.admin.listUsers();
+          const authUser = authUsers?.users?.find(
+            (u) => u.email === customer.email,
+          );
+
+          if (authUser) {
+            userId = authUser.id;
+          } else {
+            userId = crypto.randomUUID();
+          }
+        }
+      }
+    }
+
+    if (!userId) {
+      console.log("No user ID found for charge, skipping user creation");
+      return new Response(
+        JSON.stringify({ message: "No user ID found for charge" }),
+        {
+          status: 200,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    // Ensure user exists in public.users table with premium status
+    await ensureUserExists(supabaseClient, userId, customerEmail);
+
+    // Update user to premium status for successful one-time payment
+    await supabaseClient
+      .from("users")
+      .update({
+        subscription: "premium",
+        subscription_status: "premium",
+        stripe_customer_id: charge.customer,
+        updated_at: new Date().toISOString(),
+      })
+      .eq("user_id", userId);
+
+    console.log("Successfully upgraded user to premium via charge:", userId);
+
+    return new Response(
+      JSON.stringify({ message: "Charge processed successfully" }),
+      {
+        status: 200,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  } catch (error) {
+    console.error("Error processing charge:", error);
+    return new Response(
+      JSON.stringify({
+        error: "Failed to process charge",
+        details: error.message,
+      }),
+      {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      },
+    );
+  }
+}
+
+async function handleChargeUpdated(supabaseClient: any, event: any) {
+  const charge = event.data.object;
+  console.log("Handling charge updated:", charge.id, "Status:", charge.status);
+
+  // Only process if charge is now succeeded and wasn't processed before
+  if (charge.status === "succeeded" && charge.paid) {
+    return await handleChargeSucceeded(supabaseClient, event);
+  }
+
+  return new Response(JSON.stringify({ message: "Charge update processed" }), {
+    status: 200,
+    headers: { ...corsHeaders, "Content-Type": "application/json" },
+  });
 }
 
 // Main webhook handler
@@ -931,10 +832,29 @@ Deno.serve(async (req) => {
     console.log("Processing webhook event:", event.type);
 
     // Create Supabase client
-    const supabaseClient = createClient(
-      Deno.env.get("SUPABASE_URL") ?? "",
-      Deno.env.get("SUPABASE_SERVICE_KEY") ?? "",
-    );
+    const supabaseUrl = Deno.env.get("SUPABASE_URL");
+    const supabaseServiceKey =
+      Deno.env.get("SUPABASE_SERVICE_KEY") ||
+      Deno.env.get("SUPABASE_SERVICE_ROLE_KEY");
+
+    if (!supabaseUrl || !supabaseServiceKey) {
+      console.error("Missing Supabase configuration:", {
+        hasUrl: !!supabaseUrl,
+        hasServiceKey: !!supabaseServiceKey,
+        availableEnvVars: Object.keys(Deno.env.toObject()).filter((key) =>
+          key.includes("SUPABASE"),
+        ),
+      });
+      return new Response(
+        JSON.stringify({ error: "Supabase configuration missing" }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        },
+      );
+    }
+
+    const supabaseClient = createClient(supabaseUrl, supabaseServiceKey);
 
     // Log the webhook event
     await logAndStoreWebhookEvent(supabaseClient, event, event.data.object);
@@ -953,6 +873,10 @@ Deno.serve(async (req) => {
         return await handleInvoicePaymentSucceeded(supabaseClient, event);
       case "invoice.payment_failed":
         return await handleInvoicePaymentFailed(supabaseClient, event);
+      case "charge.succeeded":
+        return await handleChargeSucceeded(supabaseClient, event);
+      case "charge.updated":
+        return await handleChargeUpdated(supabaseClient, event);
       default:
         console.log(`Unhandled event type: ${event.type}`);
         return new Response(

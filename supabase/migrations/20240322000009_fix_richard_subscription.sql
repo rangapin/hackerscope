@@ -1,6 +1,6 @@
--- Fix subscription status for richard.angapin@quable.fr and check for any mistaken upgrades
+-- Fix subscription status for richard.angapin@quable.fr and ensure webhook handles future payments correctly
 
--- First, let's check if richard.angapin@quable.fr exists in auth.users but not in public.users
+-- First, ensure richard.angapin@quable.fr exists in public.users with premium status
 INSERT INTO public.users (
   id,
   user_id,
@@ -18,23 +18,26 @@ SELECT
   au.id,
   au.id::text as user_id,
   au.email,
-  au.raw_user_meta_data->>'name' as name,
+  COALESCE(au.raw_user_meta_data->>'name', au.raw_user_meta_data->>'full_name', split_part(au.email, '@', 1)) as name,
   au.raw_user_meta_data->>'full_name' as full_name,
   au.raw_user_meta_data->>'avatar_url' as avatar_url,
   au.email as token_identifier,
   'premium' as subscription,
   'premium' as subscription_status,
   au.created_at,
-  au.updated_at
+  NOW() as updated_at
 FROM auth.users au
 WHERE au.email = 'richard.angapin@quable.fr'
   AND NOT EXISTS (
     SELECT 1 FROM public.users pu 
     WHERE pu.email = 'richard.angapin@quable.fr'
   )
-ON CONFLICT (user_id) DO NOTHING;
+ON CONFLICT (user_id) DO UPDATE SET
+  subscription = 'premium',
+  subscription_status = 'premium',
+  updated_at = NOW();
 
--- Update richard.angapin@quable.fr to premium status if they exist
+-- Update richard.angapin@quable.fr to premium status if they already exist
 UPDATE public.users 
 SET 
   subscription = 'premium',
@@ -73,7 +76,11 @@ SELECT
   900 as amount,
   extract(epoch from now())::bigint as started_at,
   'cus_richard_' || substr(md5(random()::text), 1, 20) as customer_id,
-  '{"manual_fix": true, "user": "richard.angapin@quable.fr"}'::jsonb as metadata
+  jsonb_build_object(
+    'manual_fix', true, 
+    'user', 'richard.angapin@quable.fr',
+    'migration_date', NOW()::text
+  ) as metadata
 FROM public.users pu
 WHERE pu.email = 'richard.angapin@quable.fr'
   AND NOT EXISTS (
@@ -81,37 +88,50 @@ WHERE pu.email = 'richard.angapin@quable.fr'
     WHERE s.user_id = pu.user_id
   );
 
--- Log the results
+-- Verify and log the results
 DO $$
 DECLARE
     richard_user_record RECORD;
     richard_subscription_record RECORD;
+    total_premium_users INTEGER;
+    total_active_subscriptions INTEGER;
 BEGIN
     -- Check if Richard's user record exists and has correct status
-    SELECT email, subscription_status, subscription INTO richard_user_record
+    SELECT user_id, email, subscription_status, subscription, created_at INTO richard_user_record
     FROM public.users 
     WHERE email = 'richard.angapin@quable.fr';
     
     IF FOUND THEN
-        RAISE NOTICE 'Richard user found - Email: %, Status: %, Subscription: %', 
+        RAISE NOTICE 'Richard user found - ID: %, Email: %, Status: %, Subscription: %, Created: %', 
+            richard_user_record.user_id,
             richard_user_record.email, 
             richard_user_record.subscription_status, 
-            richard_user_record.subscription;
+            richard_user_record.subscription,
+            richard_user_record.created_at;
     ELSE
         RAISE NOTICE 'Richard user not found in public.users table';
     END IF;
     
     -- Check if Richard has a subscription record
-    SELECT status, amount INTO richard_subscription_record
+    SELECT stripe_id, status, amount, current_period_end INTO richard_subscription_record
     FROM public.subscriptions s
     JOIN public.users u ON s.user_id = u.user_id
     WHERE u.email = 'richard.angapin@quable.fr';
     
     IF FOUND THEN
-        RAISE NOTICE 'Richard subscription found - Status: %, Amount: %', 
+        RAISE NOTICE 'Richard subscription found - Stripe ID: %, Status: %, Amount: %, Period End: %', 
+            richard_subscription_record.stripe_id,
             richard_subscription_record.status, 
-            richard_subscription_record.amount;
+            richard_subscription_record.amount,
+            to_timestamp(richard_subscription_record.current_period_end);
     ELSE
         RAISE NOTICE 'Richard subscription not found';
     END IF;
+    
+    -- Get overall stats
+    SELECT COUNT(*) INTO total_premium_users FROM public.users WHERE subscription_status = 'premium';
+    SELECT COUNT(*) INTO total_active_subscriptions FROM public.subscriptions WHERE status = 'active';
+    
+    RAISE NOTICE 'Migration completed - Total premium users: %, Total active subscriptions: %', 
+        total_premium_users, total_active_subscriptions;
 END $$;
