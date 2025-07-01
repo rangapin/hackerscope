@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "../../../../../supabase/server";
+import { revalidatePath } from "next/cache";
 import pRetry from "p-retry";
 import { z } from "zod";
 import Anthropic from "@anthropic-ai/sdk";
@@ -700,6 +701,16 @@ export async function POST(request: NextRequest) {
     } catch (libraryError) {
       console.error("Library operation error:", libraryError);
       // Don't fail the request if library save fails, just log it
+    }
+
+    // Revalidate the library page to ensure fresh data is shown
+    try {
+      revalidatePath("/library");
+      revalidatePath("/dashboard");
+      console.log("Successfully revalidated library and dashboard paths");
+    } catch (revalidateError) {
+      console.error("Error revalidating paths:", revalidateError);
+      // Don't fail the request if revalidation fails
     }
 
     // Return structured response

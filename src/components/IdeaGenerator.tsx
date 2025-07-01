@@ -249,6 +249,10 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
         variant: "default",
       });
 
+      // Store the generated idea data for immediate display
+      setGeneratedIdea(data.idea);
+      setRemainingIdeas(data.remainingIdeas);
+
       // Add a small delay to ensure the idea is fully saved
       await new Promise((resolve) => setTimeout(resolve, 1000));
     } catch (error) {
@@ -263,22 +267,15 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
       return;
     }
 
-    // Redirect to library with proper cache invalidation
+    // Hide loading overlay
     setIsGenerating(false);
     setShowFullScreenLoading(false);
 
-    // Add a delay to ensure database transaction is fully committed
-    await new Promise((resolve) => setTimeout(resolve, 1000));
-
-    // Use Next.js router for better navigation
-    router.push("/library");
-    router.refresh();
-
-    // Fallback to hard navigation if needed
+    // Add a delay to ensure database transaction is fully committed and then redirect
     setTimeout(() => {
-      if (window.location.pathname !== "/library") {
-        window.location.href = "/library";
-      }
+      // Use router.push with refresh to ensure fresh data
+      router.push("/library");
+      router.refresh();
     }, 2000);
   };
 

@@ -141,18 +141,18 @@ export default function Dashboard({
         }
 
         setUser(user);
-        
+
         // Check for successful payment session
         if (searchParams.session_id) {
           // If there's a session_id, wait a bit for Stripe to process and then refresh subscription
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           await refreshSubscriptionStatus(user.id);
         } else {
           // Normal subscription check
           const subscriptionStatus = await checkUserSubscription(user.id);
           setIsSubscribed(subscriptionStatus);
         }
-        
+
         const freeIdeaStatus = await checkUserHasFreeIdea(user.email || "");
         setHasGeneratedFreeIdea(freeIdeaStatus);
       } catch (error) {
@@ -175,17 +175,20 @@ export default function Dashboard({
     return () => clearInterval(subscriptionCheckInterval);
   }, [router, supabase, searchParams.session_id, user?.id]);
 
-  // Listen for focus events to refresh subscription when user returns to tab
+  // Listen for focus events to refresh data when user returns to tab
   useEffect(() => {
     const handleFocus = async () => {
       if (user?.id) {
         await refreshSubscriptionStatus(user.id);
+        // Also refresh free idea status
+        const freeIdeaStatus = await checkUserHasFreeIdea(user.email || "");
+        setHasGeneratedFreeIdea(freeIdeaStatus);
       }
     };
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
-  }, [user?.id]);
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
+  }, [user?.id, user?.email]);
 
   const showSuccessToast = !!searchParams.session_id;
 

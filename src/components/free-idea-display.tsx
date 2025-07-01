@@ -241,9 +241,10 @@ export function FreeIdeaDisplay({
         setShowFullScreenLoading(false);
       }, 500);
 
-      // Redirect to library page after hiding overlay
+      // Redirect to library page after hiding overlay with router refresh
       setTimeout(() => {
         router.push("/library");
+        router.refresh();
       }, 800);
     } catch (err) {
       console.error("Error generating free idea:", err);
