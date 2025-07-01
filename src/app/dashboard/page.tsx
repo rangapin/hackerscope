@@ -67,6 +67,15 @@ async function checkUserHasFreeIdea(userEmail: string, supabaseClient?: any) {
       return false;
     }
 
+    // Additional validation for user ID format
+    if (typeof authUser.id !== "string" || authUser.id.trim() === "") {
+      console.error(
+        "❌ [USER_ID DEBUG] checkUserHasFreeIdea - Invalid user ID format:",
+        { userId: authUser.id, type: typeof authUser.id },
+      );
+      return false;
+    }
+
     console.log("🔍 [406 DEBUG] Dashboard - checkUserHasFreeIdea auth check:", {
       hasUser: !!authUser,
       userId: authUser.id,
@@ -208,6 +217,15 @@ async function getSavedIdeasWithDetails(
       return [];
     }
 
+    // Additional validation for user ID format
+    if (typeof authUser.id !== "string" || authUser.id.trim() === "") {
+      console.error(
+        "❌ [USER_ID DEBUG] getSavedIdeasWithDetails - Invalid user ID format:",
+        { userId: authUser.id, type: typeof authUser.id },
+      );
+      return [];
+    }
+
     console.log(
       "🔍 [406 DEBUG] Dashboard - getSavedIdeasWithDetails auth check:",
       {
@@ -333,6 +351,15 @@ export default function Dashboard({
 
   // Function to refresh subscription status with error handling to prevent UI clearing
   const refreshSubscriptionStatus = async (userId: string) => {
+    // Validate userId parameter
+    if (!userId || typeof userId !== "string" || userId.trim() === "") {
+      console.error(
+        "❌ [USER_ID DEBUG] refreshSubscriptionStatus called with invalid userId:",
+        { userId, type: typeof userId },
+      );
+      return isSubscribed;
+    }
+
     // Skip background fetching if idea generation just completed
     if (shouldDisableBackgroundFetching()) {
       console.log(
@@ -379,6 +406,16 @@ export default function Dashboard({
         const user = authData.user;
         if (!user.id) {
           console.error("User ID missing in loadUserData:", user);
+          router.push("/sign-in");
+          return;
+        }
+
+        // Additional validation for user ID format
+        if (typeof user.id !== "string" || user.id.trim() === "") {
+          console.error(
+            "❌ [USER_ID DEBUG] loadUserData - Invalid user ID format:",
+            { userId: user.id, type: typeof user.id },
+          );
           router.push("/sign-in");
           return;
         }
@@ -431,8 +468,13 @@ export default function Dashboard({
 
     // Set up an interval to periodically check subscription status in case of external updates
     const subscriptionCheckInterval = setInterval(async () => {
-      if (user?.id) {
+      if (user?.id && typeof user.id === "string" && user.id.trim() !== "") {
         await refreshSubscriptionStatus(user.id);
+      } else if (user?.id) {
+        console.error(
+          "❌ [USER_ID DEBUG] Invalid user ID in subscription check interval:",
+          { userId: user.id, type: typeof user.id },
+        );
       }
     }, 30000); // Check every 30 seconds
 
@@ -442,7 +484,12 @@ export default function Dashboard({
   // Listen for focus events to refresh data when user returns to tab
   useEffect(() => {
     const handleFocus = async () => {
-      if (user?.id && !shouldDisableBackgroundFetching()) {
+      if (
+        user?.id &&
+        typeof user.id === "string" &&
+        user.id.trim() !== "" &&
+        !shouldDisableBackgroundFetching()
+      ) {
         await refreshSubscriptionStatus(user.id);
         // Also refresh free idea status with error handling
         try {
@@ -461,6 +508,14 @@ export default function Dashboard({
           );
           // Don't change the free idea state if refresh fails
         }
+      } else if (
+        user?.id &&
+        (typeof user.id !== "string" || user.id.trim() === "")
+      ) {
+        console.error("❌ [USER_ID DEBUG] Invalid user ID in focus handler:", {
+          userId: user.id,
+          type: typeof user.id,
+        });
       } else if (shouldDisableBackgroundFetching()) {
         console.log(
           "🚫 [BACKGROUND FETCH DISABLED] Skipping focus refresh - idea generation in progress or recently completed (5 second block)",

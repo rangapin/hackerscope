@@ -479,6 +479,15 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Email mismatch" }, { status: 403 });
     }
 
+    // Validate user.id before using it
+    if (!user.id) {
+      console.error(
+        "❌ [USER_ID DEBUG] User ID is undefined in rate limiting:",
+        user,
+      );
+      return NextResponse.json({ error: "User ID not found" }, { status: 401 });
+    }
+
     // Rate limiting per user
     try {
       await ideaGenerationLimiter.check(20, user.id); // 20 requests per minute per user

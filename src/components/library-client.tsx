@@ -167,6 +167,23 @@ export function LibraryClient({
         return;
       }
 
+      // Additional validation before using user properties
+      if (typeof user.id !== "string" || user.id.trim() === "") {
+        console.error(
+          "❌ [USER_ID DEBUG] LibraryClient - Invalid user ID format:",
+          { userId: user.id, type: typeof user.id },
+        );
+        return;
+      }
+
+      if (typeof user.email !== "string" || user.email.trim() === "") {
+        console.error(
+          "❌ [USER_ID DEBUG] LibraryClient - Invalid user email format:",
+          { userEmail: user.email, type: typeof user.email },
+        );
+        return;
+      }
+
       console.log("🔍 [USER_ID DEBUG] LibraryClient refreshSavedIdeas using:", {
         userId: user.id,
         userEmail: user.email,

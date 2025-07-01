@@ -211,6 +211,14 @@ export const checkUserSubscription = async (userId: string) => {
     timestamp: new Date().toISOString(),
   });
 
+  // Final validation before database query
+  if (!userId) {
+    console.error(
+      "❌ [USER_ID DEBUG] userId is undefined before subscription query",
+    );
+    return false;
+  }
+
   // Use maybeSingle() instead of single() to handle cases where no subscription exists
   const { data: subscription, error } = await supabase
     .from("subscriptions")
