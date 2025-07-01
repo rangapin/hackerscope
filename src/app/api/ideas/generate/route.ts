@@ -581,8 +581,23 @@ export async function POST(request: NextRequest) {
       const { data: authUser, error: authCheckError } =
         await supabase.auth.getUser();
 
+      console.log("🔍 [406 DEBUG] Auth verification result:", {
+        hasUser: !!authUser.user,
+        userId: authUser.user?.id,
+        userEmail: authUser.user?.email,
+        authError: authCheckError,
+        requestEmail: email,
+        timestamp: new Date().toISOString(),
+      });
+
       if (authCheckError || !authUser.user) {
-        console.error("Authentication verification failed:", authCheckError);
+        console.error("❌ [406 DEBUG] Authentication verification failed:", {
+          authCheckError,
+          errorCode: authCheckError?.code,
+          errorMessage: authCheckError?.message,
+          errorDetails: authCheckError?.details,
+          timestamp: new Date().toISOString(),
+        });
         return NextResponse.json(
           { error: "Authentication required for database operation" },
           { status: 401 },
@@ -591,9 +606,11 @@ export async function POST(request: NextRequest) {
 
       // Ensure the authenticated user's email matches the request email
       if (authUser.user.email !== email) {
-        console.error("Email mismatch in database operation", {
+        console.error("❌ [406 DEBUG] Email mismatch in database operation", {
           authEmail: authUser.user.email,
           requestEmail: email,
+          userId: authUser.user.id,
+          timestamp: new Date().toISOString(),
         });
         return NextResponse.json(
           { error: "Email verification failed" },
@@ -601,9 +618,48 @@ export async function POST(request: NextRequest) {
         );
       }
 
+      // Log JWT token information for debugging
+      const session = await supabase.auth.getSession();
+      console.log("🔍 [406 DEBUG] JWT Session info:", {
+        hasSession: !!session.data.session,
+        accessToken: session.data.session?.access_token
+          ? "[PRESENT]"
+          : "[MISSING]",
+        refreshToken: session.data.session?.refresh_token
+          ? "[PRESENT]"
+          : "[MISSING]",
+        expiresAt: session.data.session?.expires_at,
+        tokenType: session.data.session?.token_type,
+        sessionError: session.error,
+        timestamp: new Date().toISOString(),
+      });
+
       console.log("🔄 [DEBUG] Attempting to save idea for user:", {
         userId: authUser.user.id,
         email: authUser.user.email,
+        timestamp: new Date().toISOString(),
+      });
+
+      // Test a simple SELECT query first to check RLS policies
+      console.log(
+        "🔍 [406 DEBUG] Testing SELECT access to generated_ideas table:",
+      );
+      const { data: testData, error: testError } = await supabase
+        .from("generated_ideas")
+        .select("id")
+        .eq("email", email)
+        .limit(1);
+
+      console.log("🔍 [406 DEBUG] SELECT test result:", {
+        testData: testData ? `Found ${testData.length} records` : "No data",
+        testError: testError
+          ? {
+              code: testError.code,
+              message: testError.message,
+              details: testError.details,
+              hint: testError.hint,
+            }
+          : "No error",
         timestamp: new Date().toISOString(),
       });
 
@@ -625,13 +681,23 @@ export async function POST(request: NextRequest) {
         .single();
 
       if (saveError) {
-        console.error("❌ [DEBUG] Database save error:", saveError);
-        console.error("Save error details:", {
+        console.error("❌ [406 DEBUG] Database save error:", {
           code: saveError.code,
           message: saveError.message,
           details: saveError.details,
           hint: saveError.hint,
+          timestamp: new Date().toISOString(),
         });
+
+        // Check if this is a 406 error specifically
+        if (saveError.code === "406" || saveError.message?.includes("406")) {
+          console.error("❌ [406 DEBUG] Detected 406 error in database save:", {
+            fullError: saveError,
+            userEmail: email,
+            userId: authUser.user.id,
+            timestamp: new Date().toISOString(),
+          });
+        }
 
         // Handle specific RLS policy errors
         if (
@@ -652,6 +718,11 @@ export async function POST(request: NextRequest) {
           {
             error: "Failed to save idea to database",
             details: saveError.message,
+            debugInfo: {
+              code: saveError.code,
+              hint: saveError.hint,
+              details: saveError.details,
+            },
           },
           { status: 500 },
         );
@@ -665,7 +736,13 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
       });
     } catch (dbError) {
-      console.error("Database operation error:", dbError);
+      console.error("❌ [406 DEBUG] Database operation error:", {
+        error: dbError,
+        errorMessage:
+          dbError instanceof Error ? dbError.message : "Unknown error",
+        errorStack: dbError instanceof Error ? dbError.stack : "No stack trace",
+        timestamp: new Date().toISOString(),
+      });
       return NextResponse.json(
         {
           error: "Database error",

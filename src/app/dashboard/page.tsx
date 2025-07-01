@@ -21,6 +21,24 @@ import type { User } from "@supabase/supabase-js";
 // Function to check if user has generated their free idea
 async function checkUserHasFreeIdea(userEmail: string) {
   const supabase = createClient();
+
+  // Check authentication and JWT token
+  const { data: authUser, error: authError } = await supabase.auth.getUser();
+  console.log("🔍 [406 DEBUG] Dashboard - checkUserHasFreeIdea auth check:", {
+    hasUser: !!authUser.user,
+    userId: authUser.user?.id,
+    userEmail: authUser.user?.email,
+    authError: authError
+      ? {
+          code: authError.code,
+          message: authError.message,
+          details: authError.details,
+        }
+      : null,
+    requestEmail: userEmail,
+    timestamp: new Date().toISOString(),
+  });
+
   const { data, error } = await supabase
     .from("generated_ideas")
     .select("id")
@@ -29,8 +47,22 @@ async function checkUserHasFreeIdea(userEmail: string) {
     .single();
 
   if (error && error.code !== "PGRST116") {
+    console.error("❌ [406 DEBUG] Dashboard - checkUserHasFreeIdea error:", {
+      code: error.code,
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      userEmail,
+      timestamp: new Date().toISOString(),
+    });
     return false;
   }
+
+  console.log("✅ [DEBUG] Dashboard - checkUserHasFreeIdea result:", {
+    hasData: !!data,
+    userEmail,
+    timestamp: new Date().toISOString(),
+  });
 
   return !!data;
 }
@@ -64,6 +96,26 @@ async function getSavedIdeasWithDetails(
 ): Promise<(SavedIdea & { generated_idea?: GeneratedIdea })[]> {
   const supabase = createClient();
 
+  // Check authentication and JWT token
+  const { data: authUser, error: authError } = await supabase.auth.getUser();
+  console.log(
+    "🔍 [406 DEBUG] Dashboard - getSavedIdeasWithDetails auth check:",
+    {
+      hasUser: !!authUser.user,
+      userId: authUser.user?.id,
+      userEmail: authUser.user?.email,
+      authError: authError
+        ? {
+            code: authError.code,
+            message: authError.message,
+            details: authError.details,
+          }
+        : null,
+      requestEmail: userEmail,
+      timestamp: new Date().toISOString(),
+    },
+  );
+
   // Get saved ideas
   const { data: savedIdeas, error: savedError } = await supabase
     .from("saved_ideas")
@@ -72,6 +124,14 @@ async function getSavedIdeasWithDetails(
     .order("created_at", { ascending: false });
 
   if (savedError) {
+    console.error("❌ [406 DEBUG] Dashboard - Error loading saved ideas:", {
+      code: savedError.code,
+      message: savedError.message,
+      details: savedError.details,
+      hint: savedError.hint,
+      userEmail,
+      timestamp: new Date().toISOString(),
+    });
     return [];
   }
 
@@ -87,6 +147,15 @@ async function getSavedIdeasWithDetails(
     .in("id", ideaIds);
 
   if (generatedError) {
+    console.error("❌ [406 DEBUG] Dashboard - Error loading generated ideas:", {
+      code: generatedError.code,
+      message: generatedError.message,
+      details: generatedError.details,
+      hint: generatedError.hint,
+      ideaIds,
+      userEmail,
+      timestamp: new Date().toISOString(),
+    });
     return savedIdeas;
   }
 

@@ -146,8 +146,15 @@ export function LibraryClient({
 
       if (savedError) {
         console.error(
-          "❌ [DEBUG] LibraryClient - Error loading saved ideas:",
-          savedError,
+          "❌ [406 DEBUG] LibraryClient - Error loading saved ideas:",
+          {
+            code: savedError.code,
+            message: savedError.message,
+            details: savedError.details,
+            hint: savedError.hint,
+            userEmail: user.email,
+            timestamp: new Date().toISOString(),
+          },
         );
         return;
       }
@@ -189,8 +196,16 @@ export function LibraryClient({
 
       if (generatedError) {
         console.error(
-          "❌ [DEBUG] LibraryClient - Error loading generated ideas:",
-          generatedError,
+          "❌ [406 DEBUG] LibraryClient - Error loading generated ideas:",
+          {
+            code: generatedError.code,
+            message: generatedError.message,
+            details: generatedError.details,
+            hint: generatedError.hint,
+            ideaIds,
+            userEmail: user.email,
+            timestamp: new Date().toISOString(),
+          },
         );
         setSavedIdeas(savedIdeasData);
         return;

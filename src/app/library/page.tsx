@@ -61,6 +61,41 @@ async function getSavedIdeasWithDetails(
 
   const supabase = await createClient();
 
+  // Check authentication and JWT token
+  const { data: authUser, error: authError } = await supabase.auth.getUser();
+  console.log("🔍 [406 DEBUG] Library Page - Auth check:", {
+    hasUser: !!authUser.user,
+    userId: authUser.user?.id,
+    userEmail: authUser.user?.email,
+    authError: authError
+      ? {
+          code: authError.code,
+          message: authError.message,
+          details: authError.details,
+        }
+      : null,
+    requestEmail: userEmail,
+    timestamp: new Date().toISOString(),
+  });
+
+  // Check session and JWT token
+  const { data: session, error: sessionError } =
+    await supabase.auth.getSession();
+  console.log("🔍 [406 DEBUG] Library Page - Session check:", {
+    hasSession: !!session.session,
+    accessToken: session.session?.access_token ? "[PRESENT]" : "[MISSING]",
+    refreshToken: session.session?.refresh_token ? "[PRESENT]" : "[MISSING]",
+    expiresAt: session.session?.expires_at,
+    tokenType: session.session?.token_type,
+    sessionError: sessionError
+      ? {
+          code: sessionError.code,
+          message: sessionError.message,
+        }
+      : null,
+    timestamp: new Date().toISOString(),
+  });
+
   // Force fresh data by adding timestamp to prevent any client-side caching
   const cacheBreaker = Date.now();
 
@@ -79,10 +114,14 @@ async function getSavedIdeasWithDetails(
     .limit(1000); // Add explicit limit to prevent caching issues
 
   if (savedError) {
-    console.error(
-      "❌ [DEBUG] Library Page - Error loading saved ideas:",
-      savedError,
-    );
+    console.error("❌ [406 DEBUG] Library Page - Error loading saved ideas:", {
+      code: savedError.code,
+      message: savedError.message,
+      details: savedError.details,
+      hint: savedError.hint,
+      userEmail,
+      timestamp: new Date().toISOString(),
+    });
     return [];
   }
 
@@ -121,8 +160,16 @@ async function getSavedIdeasWithDetails(
 
   if (generatedError) {
     console.error(
-      "❌ [DEBUG] Library Page - Error loading generated ideas:",
-      generatedError,
+      "❌ [406 DEBUG] Library Page - Error loading generated ideas:",
+      {
+        code: generatedError.code,
+        message: generatedError.message,
+        details: generatedError.details,
+        hint: generatedError.hint,
+        ideaIds,
+        userEmail,
+        timestamp: new Date().toISOString(),
+      },
     );
     return savedIdeas;
   }

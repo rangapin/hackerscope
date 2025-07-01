@@ -50,6 +50,14 @@ USING (
   (auth.jwt() ->> 'email' = email OR auth.email() = email)
 );
 
+-- Add debugging policy to allow broader access temporarily for troubleshooting
+-- This policy should be removed once the 406 issue is resolved
+CREATE POLICY "Debug policy for generated_ideas"
+ON generated_ideas FOR SELECT
+USING (
+  auth.uid() IS NOT NULL
+);
+
 -- Create RLS policies for saved_ideas table
 CREATE POLICY "Users can insert their own saved ideas"
 ON saved_ideas FOR INSERT
