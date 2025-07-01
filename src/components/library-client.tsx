@@ -546,13 +546,22 @@ export function LibraryClient({
                 No saved ideas yet
               </h3>
               <p className="text-gray-600 mb-6">
-                Generate your first startup idea to see it here.
+                Your saved startup ideas will appear here.
               </p>
             </div>
           </CardContent>
         </Card>
 
         <div className="flex justify-center gap-4">
+          <Button
+            onClick={refreshSavedIdeas}
+            disabled={isRefreshing}
+            variant="outline"
+            size="lg"
+            className="w-32"
+          >
+            {isRefreshing ? <LoadingAnimation /> : "Refresh"}
+          </Button>
           <Button
             onClick={() => router.push("/dashboard")}
             size="lg"
