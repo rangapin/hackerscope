@@ -158,6 +158,27 @@ export function LibraryClient({
         },
       );
 
+      // CRITICAL DEBUG: Compare client configurations
+      const { data: currentSession } = await supabase.auth.getSession();
+      console.log(
+        "🔍 [CLIENT CONFIG DEBUG] LibraryClient - Fetching operation client config:",
+        {
+          clientType: "browser-side",
+          context: "client component",
+          authMethod: "browser-side auth.getUser()",
+          hasAccessToken: currentSession.session?.access_token
+            ? "[PRESENT]"
+            : "[MISSING]",
+          tokenType: currentSession.session?.token_type,
+          userFromAuth: {
+            id: user.id,
+            email: user.email,
+            role: user.role,
+          },
+          timestamp: new Date().toISOString(),
+        },
+      );
+
       const { data: savedIdeasData, error: savedError } = await supabase
         .from("saved_ideas")
         .select("*")

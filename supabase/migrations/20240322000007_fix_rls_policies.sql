@@ -58,6 +58,13 @@ USING (
   auth.uid() IS NOT NULL
 );
 
+-- Add debugging policy for saved_ideas as well
+CREATE POLICY "Debug policy for saved_ideas"
+ON saved_ideas FOR SELECT
+USING (
+  auth.uid() IS NOT NULL
+);
+
 -- Create RLS policies for saved_ideas table
 CREATE POLICY "Users can insert their own saved ideas"
 ON saved_ideas FOR INSERT

@@ -648,6 +648,26 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
       });
 
+      // CRITICAL DEBUG: Compare client configurations
+      console.log(
+        "🔍 [CLIENT CONFIG DEBUG] API Route - Saving operation client config:",
+        {
+          clientType: "server-side",
+          context: "API route",
+          authMethod: "server-side auth.getUser()",
+          hasAccessToken: session.data.session?.access_token
+            ? "[PRESENT]"
+            : "[MISSING]",
+          tokenType: session.data.session?.token_type,
+          userFromAuth: {
+            id: authUser.user.id,
+            email: authUser.user.email,
+            role: authUser.user.role,
+          },
+          timestamp: new Date().toISOString(),
+        },
+      );
+
       // Test a simple SELECT query first to check RLS policies
       console.log(
         "🔍 [406 DEBUG] Testing SELECT access to generated_ideas table:",
@@ -671,6 +691,27 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
       });
 
+      // CRITICAL DEBUG: Test SELECT before INSERT to compare permissions
+      console.log("🔍 [RLS DEBUG] Testing SELECT permissions before INSERT:");
+      const { data: preInsertTest, error: preInsertError } = await supabase
+        .from("generated_ideas")
+        .select("id")
+        .eq("email", email)
+        .limit(1);
+
+      console.log("🔍 [RLS DEBUG] Pre-INSERT SELECT test result:", {
+        canSelect: !preInsertError,
+        selectError: preInsertError
+          ? {
+              code: preInsertError.code,
+              message: preInsertError.message,
+              hint: preInsertError.hint,
+            }
+          : null,
+        foundRecords: preInsertTest?.length || 0,
+        timestamp: new Date().toISOString(),
+      });
+
       const { data, error: saveError } = await supabase
         .from("generated_ideas")
         .insert({
@@ -687,6 +728,33 @@ export async function POST(request: NextRequest) {
         })
         .select()
         .single();
+
+      // CRITICAL DEBUG: Test SELECT after INSERT to see if permissions changed
+      if (!saveError) {
+        console.log(
+          "🔍 [RLS DEBUG] Testing SELECT permissions after successful INSERT:",
+        );
+        const { data: postInsertTest, error: postInsertError } = await supabase
+          .from("generated_ideas")
+          .select("id, title")
+          .eq("email", email)
+          .order("created_at", { ascending: false })
+          .limit(3);
+
+        console.log("🔍 [RLS DEBUG] Post-INSERT SELECT test result:", {
+          canSelect: !postInsertError,
+          selectError: postInsertError
+            ? {
+                code: postInsertError.code,
+                message: postInsertError.message,
+                hint: postInsertError.hint,
+              }
+            : null,
+          foundRecords: postInsertTest?.length || 0,
+          recordTitles: postInsertTest?.map((r) => r.title) || [],
+          timestamp: new Date().toISOString(),
+        });
+      }
 
       if (saveError) {
         console.error("❌ [406 DEBUG] Database save error:", {

@@ -154,7 +154,7 @@ async function getSavedIdeasWithDetails(
   }
 
   // Get the corresponding generated ideas for detailed information
-  const ideaIds = savedIdeas.map((idea) => idea.idea_id);
+  const ideaIds = savedIdeas.map((idea: SavedIdea) => idea.idea_id);
   const { data: generatedIdeas, error: generatedError } = await supabase
     .from("generated_ideas")
     .select("*")
@@ -244,7 +244,10 @@ export default function Dashboard({
           setIsSubscribed(subscriptionStatus);
         }
 
-        const freeIdeaStatus = await checkUserHasFreeIdea(user.email || "");
+        const freeIdeaStatus = await checkUserHasFreeIdea(
+          user.email || "",
+          supabase,
+        );
         setHasGeneratedFreeIdea(freeIdeaStatus);
       } catch (error) {
         console.error("Error loading user data:", error);
@@ -272,14 +275,17 @@ export default function Dashboard({
       if (user?.id) {
         await refreshSubscriptionStatus(user.id);
         // Also refresh free idea status
-        const freeIdeaStatus = await checkUserHasFreeIdea(user.email || "");
+        const freeIdeaStatus = await checkUserHasFreeIdea(
+          user.email || "",
+          supabase,
+        );
         setHasGeneratedFreeIdea(freeIdeaStatus);
       }
     };
 
     window.addEventListener("focus", handleFocus);
     return () => window.removeEventListener("focus", handleFocus);
-  }, [user?.id, user?.email]);
+  }, [user?.id, user?.email, supabase]);
 
   const showSuccessToast = !!searchParams.session_id;
 

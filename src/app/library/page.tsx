@@ -104,6 +104,24 @@ async function getSavedIdeasWithDetails(
     timestamp: new Date().toISOString(),
   });
 
+  // CRITICAL DEBUG: Compare client configurations
+  console.log(
+    "🔍 [CLIENT CONFIG DEBUG] Library Page - Fetching operation client config:",
+    {
+      clientType: "server-side",
+      context: "server component",
+      authMethod: "server-side auth.getUser()",
+      hasAccessToken: session.session?.access_token ? "[PRESENT]" : "[MISSING]",
+      tokenType: session.session?.token_type,
+      userFromAuth: {
+        id: authUser.user?.id,
+        email: authUser.user?.email,
+        role: authUser.user?.role,
+      },
+      timestamp: new Date().toISOString(),
+    },
+  );
+
   // Force fresh data by adding timestamp to prevent any client-side caching
   const cacheBreaker = Date.now();
 
