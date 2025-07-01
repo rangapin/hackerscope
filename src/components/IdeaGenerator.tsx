@@ -267,8 +267,17 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
     setIsGenerating(false);
     setShowFullScreenLoading(false);
 
-    // Force a complete page refresh to ensure server components reload with fresh data
-    window.location.href = "/library";
+    // Add a longer delay to ensure database transaction is fully committed
+    await new Promise((resolve) => setTimeout(resolve, 2000));
+
+    // Force a complete page refresh with cache busting
+    const timestamp = Date.now();
+    window.location.href = `/library?t=${timestamp}`;
+
+    // Fallback: if the above doesn't work, try a hard reload
+    setTimeout(() => {
+      window.location.reload();
+    }, 1000);
   };
 
   const handleLike = () => {
