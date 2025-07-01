@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Card,
@@ -75,14 +75,31 @@ interface LibraryClientProps {
 export function LibraryClient({ savedIdeas }: LibraryClientProps) {
   const [selectedIdea, setSelectedIdea] = useState<SavedIdea | null>(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [isClient, setIsClient] = useState(false);
   const router = useRouter();
+
+  // Ensure proper hydration
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
+  // Debug logging
+  useEffect(() => {
+    console.log("LibraryClient received savedIdeas:", savedIdeas);
+    console.log("savedIdeas length:", savedIdeas?.length || 0);
+  }, [savedIdeas]);
 
   const handleViewDetails = (idea: SavedIdea) => {
     setSelectedIdea(idea);
     setShowDetailsModal(true);
   };
 
-  if (savedIdeas.length === 0) {
+  // Show loading state during hydration
+  if (!isClient) {
+    return <LoadingAnimation />;
+  }
+
+  if (!savedIdeas || savedIdeas.length === 0) {
     return (
       <div className="space-y-8">
         <Card className="bg-white border-gray-200">
@@ -93,8 +110,17 @@ export function LibraryClient({ savedIdeas }: LibraryClientProps) {
                 No saved ideas yet
               </h3>
               <p className="text-gray-600 mb-6">
-                Generate your first startup idea to see it here.
+                Generate your first startup idea or refresh if you just created
+                one.
               </p>
+              <Button
+                onClick={() => window.location.reload()}
+                variant="outline"
+                size="lg"
+                className="mb-4 bg-white border-2 border-[#D4714B] text-[#D4714B] hover:bg-[#D4714B] hover:text-white font-medium py-3 px-6 rounded-md transition-colors duration-200"
+              >
+                Refresh Page
+              </Button>
             </div>
           </CardContent>
         </Card>
@@ -115,45 +141,51 @@ export function LibraryClient({ savedIdeas }: LibraryClientProps) {
   return (
     <div className="space-y-8">
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {savedIdeas.map((idea) => (
-          <Card
-            key={idea.id}
-            className="bg-white border-gray-200 hover:shadow-md transition-shadow flex flex-col h-full"
-          >
-            <CardHeader className="flex-shrink-0">
-              <CardTitle className="text-lg font-medium text-gray-900 line-clamp-2 text-center">
-                {idea.title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="flex flex-col flex-grow">
-              <div className="flex flex-col h-full">
-                <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 mb-4">
-                  {idea.description}
-                </p>
-                <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
-                  <span>
-                    Saved on{" "}
-                    {new Date(idea.created_at).toLocaleDateString("en-US", {
-                      month: "2-digit",
-                      day: "2-digit",
-                      year: "numeric",
-                    })}
-                  </span>
-                  {idea.is_liked && <span className="text-red-500">♥</span>}
+        {savedIdeas && savedIdeas.length > 0 ? (
+          savedIdeas.map((idea) => (
+            <Card
+              key={idea.id}
+              className="bg-white border-gray-200 hover:shadow-md transition-shadow flex flex-col h-full"
+            >
+              <CardHeader className="flex-shrink-0">
+                <CardTitle className="text-lg font-medium text-gray-900 line-clamp-2 text-center">
+                  {idea.title}
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="flex flex-col flex-grow">
+                <div className="flex flex-col h-full">
+                  <p className="text-gray-600 text-sm leading-relaxed line-clamp-3 mb-4">
+                    {idea.description}
+                  </p>
+                  <div className="flex items-center justify-between text-xs text-gray-500 mb-4">
+                    <span>
+                      Saved on{" "}
+                      {new Date(idea.created_at).toLocaleDateString("en-US", {
+                        month: "2-digit",
+                        day: "2-digit",
+                        year: "numeric",
+                      })}
+                    </span>
+                    {idea.is_liked && <span className="text-red-500">♥</span>}
+                  </div>
+                  <div className="mt-auto">
+                    <Button
+                      onClick={() => handleViewDetails(idea)}
+                      variant="outline"
+                      className="w-full"
+                    >
+                      View details
+                    </Button>
+                  </div>
                 </div>
-                <div className="mt-auto">
-                  <Button
-                    onClick={() => handleViewDetails(idea)}
-                    variant="outline"
-                    className="w-full"
-                  >
-                    View details
-                  </Button>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        ) : (
+          <div className="col-span-full text-center py-8">
+            <p className="text-gray-500">No saved ideas found</p>
+          </div>
+        )}
       </div>
 
       <div className="flex justify-center">

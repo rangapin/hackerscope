@@ -52,7 +52,7 @@
     "react-hook-form": "^7.57.0",
     "react-resizable-panels": "^3.0.2",
     "stripe": "^17.7.0",
-    "tempo-devtools": "^2.0.106",
+    "tempo-devtools": "^2.0.108",
     "vaul": "^1.1.2",
     "zod": "^3.25.57"
   },
