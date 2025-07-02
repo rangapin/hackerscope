@@ -58,6 +58,11 @@ export default function RootLayout({
           type="font/woff2"
           crossOrigin="anonymous"
         />
+        <script
+          defer
+          src="https://cloud.umami.is/script.js"
+          data-website-id="bedf574c-023c-45de-9e53-523e38cf6859"
+        ></script>
       </head>
       <Script src="https://api.tempo.new/proxy-asset?url=https://storage.googleapis.com/tempo-public-assets/error-handling.js" />
       <body className={inter.className}>
