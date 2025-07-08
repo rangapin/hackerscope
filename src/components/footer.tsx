@@ -22,26 +22,38 @@ export default function Footer() {
             </div>
           </div>
 
-          {/* Social icons - hidden on mobile, visible on larger screens */}
-          <div className="hidden sm:flex items-center space-x-4">
-            <a
-              href="https://www.linkedin.com/company/hackerscope/"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-600 hover:text-orange-500 transition-colors duration-200"
-            >
-              <span className="sr-only">LinkedIn</span>
-              <Linkedin className="h-5 w-5" />
+          {/* TinyLaunch Badge and Social icons */}
+          <div className="flex flex-col items-center space-y-2 sm:flex-row sm:space-y-0 sm:space-x-4">
+            {/* TinyLaunch Badge */}
+            <a href="https://tinylaun.ch" target="_blank" rel="noopener">
+              <img
+                src="https://tinylaun.ch/tinylaunch_badge_2.svg"
+                alt="TinyLaunch Badge"
+                className="w-32 sm:w-40 h-auto hover:opacity-80 transition-opacity duration-200"
+              />
             </a>
-            <a
-              href="https://www.facebook.com/hackerscopeAI"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-gray-600 hover:text-orange-500 transition-colors duration-200"
-            >
-              <span className="sr-only">Facebook</span>
-              <Facebook className="h-5 w-5" />
-            </a>
+
+            {/* Social icons - hidden on mobile, visible on larger screens */}
+            <div className="hidden sm:flex items-center space-x-4">
+              <a
+                href="https://www.linkedin.com/company/hackerscope/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-600 hover:text-orange-500 transition-colors duration-200"
+              >
+                <span className="sr-only">LinkedIn</span>
+                <Linkedin className="h-5 w-5" />
+              </a>
+              <a
+                href="https://www.facebook.com/hackerscopeAI"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-gray-600 hover:text-orange-500 transition-colors duration-200"
+              >
+                <span className="sr-only">Facebook</span>
+                <Facebook className="h-5 w-5" />
+              </a>
+            </div>
           </div>
         </div>
       </div>
