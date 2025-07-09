@@ -30,7 +30,7 @@ export default function FAQ() {
     {
       question: "How often can I generate new ideas?",
       answer:
-        "Free users can generate one business idea per email address. Hacker members (€5/month) can generate unlimited ideas with reasonable usage limits: up to 12 ideas per hour and 24 ideas per day. These limits ensure system stability while providing ample access for regular idea exploration.",
+        "Free users can generate one business idea per email address. Premium members (€9/month) can generate unlimited ideas with reasonable usage limits: up to 12 ideas per hour and 24 ideas per day. These limits ensure system stability while providing ample access for regular idea exploration.",
     },
     {
       question: "What if I don't like the generated ideas?",
