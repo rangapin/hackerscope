@@ -154,7 +154,7 @@ export default function FeedbackWidget({
     updateFormData("upgradeBarriers", newSelections);
   };
 
-  const onSubmit = async (e: React.FormEvent) => {
+  const onSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
     // Clear previous errors
