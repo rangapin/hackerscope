@@ -413,7 +413,7 @@ export default function FeedbackWidget({
                     </div>
                   </div>
 
-                  {state.errors && state.errors.length > 0 && (
+                  {state.errors && Object.keys(state.errors).length > 0 && (
                     <div className="text-red-600 text-sm mt-2">
                       There was an error sending your feedback. Please try
                       again.
