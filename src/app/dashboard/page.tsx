@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/card";
 import { SuccessToast } from "@/components/success-toast";
 import { FreeIdeaDisplay } from "@/components/free-idea-display";
+import FeedbackWidget from "@/components/FeedbackWidget";
 import type { User } from "@supabase/supabase-js";
 
 // Function to check if user has generated their free idea
@@ -113,6 +114,7 @@ export default function Dashboard({
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [hasGeneratedFreeIdea, setHasGeneratedFreeIdea] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [isGeneratingIdea, setIsGeneratingIdea] = useState(false);
   const router = useRouter();
   const supabase = createClient();
 
@@ -141,18 +143,18 @@ export default function Dashboard({
         }
 
         setUser(user);
-        
+
         // Check for successful payment session
         if (searchParams.session_id) {
           // If there's a session_id, wait a bit for Stripe to process and then refresh subscription
-          await new Promise(resolve => setTimeout(resolve, 2000));
+          await new Promise((resolve) => setTimeout(resolve, 2000));
           await refreshSubscriptionStatus(user.id);
         } else {
           // Normal subscription check
           const subscriptionStatus = await checkUserSubscription(user.id);
           setIsSubscribed(subscriptionStatus);
         }
-        
+
         const freeIdeaStatus = await checkUserHasFreeIdea(user.email || "");
         setHasGeneratedFreeIdea(freeIdeaStatus);
       } catch (error) {
@@ -183,8 +185,8 @@ export default function Dashboard({
       }
     };
 
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+    window.addEventListener("focus", handleFocus);
+    return () => window.removeEventListener("focus", handleFocus);
   }, [user?.id]);
 
   const showSuccessToast = !!searchParams.session_id;
@@ -287,7 +289,10 @@ export default function Dashboard({
             /* Premium User Dashboard */
             <div className="grid gap-4">
               {/* Idea Generator Component */}
-              <IdeaGenerator userEmail={user.email || ""} />
+              <IdeaGenerator
+                userEmail={user.email || ""}
+                onGeneratingChange={setIsGeneratingIdea}
+              />
             </div>
           ) : (
             /* Free Tier Dashboard */
@@ -333,6 +338,12 @@ export default function Dashboard({
       </main>
 
       <Footer />
+
+      {/* Feedback Widget - only show for users who have generated ideas */}
+      <FeedbackWidget
+        isGenerating={isGeneratingIdea}
+        hasGeneratedIdea={hasGeneratedFreeIdea || isSubscribed}
+      />
     </div>
   );
 }

@@ -11,10 +11,14 @@ import { Alert, AlertDescription } from "./ui/alert";
 
 interface FeedbackWidgetProps {
   formId?: string;
+  isGenerating?: boolean;
+  hasGeneratedIdea?: boolean;
 }
 
 export default function FeedbackWidget({
   formId = "xldnqpvl",
+  isGenerating = false,
+  hasGeneratedIdea = false,
 }: FeedbackWidgetProps) {
   const [isOpen, setIsOpen] = useState(false);
   const [state, handleSubmit] = useForm(formId);
@@ -38,6 +42,37 @@ export default function FeedbackWidget({
   const [improvementSuggestions, setImprovementSuggestions] = useState("");
   const [additionalComments, setAdditionalComments] = useState("");
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
+  const [shouldShow, setShouldShow] = useState(false);
+
+  // Check if widget should be shown based on idea generation history
+  useEffect(() => {
+    const checkShouldShow = () => {
+      // Don't show if currently generating
+      if (isGenerating) {
+        setShouldShow(false);
+        return;
+      }
+
+      // Don't show if user hasn't generated any ideas yet
+      if (!hasGeneratedIdea) {
+        setShouldShow(false);
+        return;
+      }
+
+      // Check localStorage for feedback widget state
+      const feedbackState = localStorage.getItem("hackerscope-feedback-state");
+      const parsedState = feedbackState ? JSON.parse(feedbackState) : {};
+
+      // Show widget if user has generated ideas and hasn't dismissed it permanently
+      if (!parsedState.dismissed && hasGeneratedIdea) {
+        setShouldShow(true);
+      } else {
+        setShouldShow(false);
+      }
+    };
+
+    checkShouldShow();
+  }, [isGenerating, hasGeneratedIdea]);
 
   // Reset form state when modal closes
   const resetFormState = () => {
@@ -65,6 +100,17 @@ export default function FeedbackWidget({
   const handleModalClose = () => {
     setIsOpen(false);
     resetFormState();
+
+    // Mark as dismissed in localStorage
+    const feedbackState = {
+      dismissed: true,
+      dismissedAt: Date.now(),
+    };
+    localStorage.setItem(
+      "hackerscope-feedback-state",
+      JSON.stringify(feedbackState),
+    );
+    setShouldShow(false);
   };
 
   // Auto-close modal after successful submission
@@ -175,7 +221,7 @@ export default function FeedbackWidget({
             </label>
             <div className="space-y-0.5">
               {[
-                "Yes, it was exactly what I was looking for",
+                "Yes, it was a great idea",
                 "It was okay, but not super actionable",
                 "No, it didn't feel useful",
                 "I didn't get a free idea yet",
@@ -283,6 +329,11 @@ export default function FeedbackWidget({
         return null;
     }
   };
+
+  // Don't render if shouldn't show
+  if (!shouldShow) {
+    return null;
+  }
 
   return (
     <div className="fixed bottom-6 right-6 z-50">

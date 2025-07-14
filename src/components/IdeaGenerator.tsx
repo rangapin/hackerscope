@@ -134,9 +134,13 @@ interface SavedIdea {
 
 interface IdeaGeneratorProps {
   userEmail: string;
+  onGeneratingChange?: (isGenerating: boolean) => void;
 }
 
-export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
+export default function IdeaGenerator({
+  userEmail,
+  onGeneratingChange,
+}: IdeaGeneratorProps) {
   const router = useRouter();
   const { toast } = useToast();
   const [industry, setIndustry] = useState("");
@@ -200,6 +204,7 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
     setIsGenerating(true);
     setShowFullScreenLoading(true);
     setGeneratedIdea(null);
+    onGeneratingChange?.(true);
 
     try {
       const response = await fetch("/api/ideas/generate", {
@@ -242,16 +247,8 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
         throw new Error(data.message || "Failed to generate idea");
       }
 
-      // Show success message
-      toast({
-        title: "Idea Generated Successfully!",
-        description: "Your new startup idea has been saved to your library.",
-        variant: "default",
-      });
-
       // Add a small delay to ensure the idea is fully saved
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
+      await new Promise((resolve) => setTimeout(resolve, 1000));
     } catch (error) {
       console.error("Error generating idea:", error);
       toast({
@@ -261,17 +258,19 @@ export default function IdeaGenerator({ userEmail }: IdeaGeneratorProps) {
       });
       setIsGenerating(false);
       setShowFullScreenLoading(false);
+      onGeneratingChange?.(false);
       return;
     }
 
     // Redirect to library with a cache-busting parameter to force refresh
     setIsGenerating(false);
     setShowFullScreenLoading(false);
-    
+    onGeneratingChange?.(false);
+
     // Use replace to avoid back button issues and add timestamp to force refresh
     const timestamp = Date.now();
     router.replace(`/library?refresh=${timestamp}`);
-    
+
     // Also trigger a hard refresh of the router cache
     router.refresh();
   };
