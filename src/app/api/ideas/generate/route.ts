@@ -574,7 +574,6 @@ export async function POST(request: NextRequest) {
         preferences: sanitizedPreferences || null,
         constraints: sanitizedConstraints || null,
         industry: sanitizedIndustry || null,
-        domain_availability: domainCheck,
       })
       .select()
       .single();
