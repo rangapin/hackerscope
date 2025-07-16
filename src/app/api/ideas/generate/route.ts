@@ -570,7 +570,6 @@ export async function POST(request: NextRequest) {
         target_audience: validatedIdea.target_audience,
         revenue_streams: validatedIdea.revenue_streams,
         validation_data: validatedIdea.validation_data,
-        domain_availability: domainCheck,
         preferences: sanitizedPreferences || null,
         constraints: sanitizedConstraints || null,
         industry: sanitizedIndustry || null,
