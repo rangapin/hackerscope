@@ -208,7 +208,6 @@ export default function IdeaGenerator({
   const handleGenerate = async () => {
     setIsGenerating(true);
     setShowFullScreenLoading(true);
-    setGeneratedIdea(null);
     onGeneratingChange?.(true);
 
     try {
@@ -258,9 +257,6 @@ export default function IdeaGenerator({
         throw new Error(data.message || "Failed to generate idea");
       }
 
-      // Add a small delay to ensure the idea is fully saved
-      await new Promise((resolve) => setTimeout(resolve, 1000));
-
       // Redirect immediately without updating component state to prevent flash
       const timestamp = Date.now();
       router.replace(`/library?refresh=${timestamp}`);
@@ -277,11 +273,6 @@ export default function IdeaGenerator({
       onGeneratingChange?.(false);
       return;
     }
-
-    // Clean up loading states after redirect is initiated
-    setIsGenerating(false);
-    setShowFullScreenLoading(false);
-    onGeneratingChange?.(false);
   };
 
   const handleLike = () => {
