@@ -44,6 +44,102 @@ const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
 
+// Namecheap API configuration
+const NAMECHEAP_API_KEY = process.env.NAMECHEAP_API_KEY;
+const NAMECHEAP_USERNAME = process.env.NAMECHEAP_USERNAME || "hackerscope";
+const NAMECHEAP_CLIENT_IP = process.env.NAMECHEAP_CLIENT_IP || "127.0.0.1";
+
+// Function to check domain availability with Namecheap
+async function checkDomainAvailability(domainName: string) {
+  try {
+    // Check if required environment variables are set
+    if (!NAMECHEAP_API_KEY || !NAMECHEAP_USERNAME) {
+      console.warn("Namecheap API credentials not configured");
+      return {
+        available: [],
+        unavailable: [],
+        error: "Domain check service not configured",
+      };
+    }
+
+    const cleanDomainName = domainName
+      .toLowerCase()
+      .replace(/[^a-z0-9]/g, "")
+      .substring(0, 63); // Domain name length limit
+
+    const domains = [
+      `${cleanDomainName}.com`,
+      `${cleanDomainName}.net`,
+      `${cleanDomainName}.org`,
+    ];
+
+    const domainList = domains.join(",");
+
+    const response = await fetch(
+      `https://api.namecheap.com/xml.response?ApiUser=${NAMECHEAP_USERNAME}&ApiKey=${NAMECHEAP_API_KEY}&UserName=${NAMECHEAP_USERNAME}&Command=namecheap.domains.check&ClientIp=${NAMECHEAP_CLIENT_IP}&DomainList=${domainList}`,
+      {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/xml",
+        },
+      },
+    );
+
+    if (!response.ok) {
+      console.error(
+        "Namecheap API error:",
+        response.status,
+        response.statusText,
+      );
+      return {
+        available: [],
+        unavailable: [],
+        error: "Domain check temporarily unavailable",
+      };
+    }
+
+    const xmlText = await response.text();
+
+    // Parse XML response (basic parsing)
+    const available = [];
+    const unavailable = [];
+
+    // Extract domain availability from XML
+    const domainMatches = xmlText.match(/<DomainCheckResult[^>]*>/g);
+
+    if (domainMatches) {
+      for (const match of domainMatches) {
+        const domainMatch = match.match(/Domain="([^"]*)"/);
+        const availableMatch = match.match(/Available="([^"]*)"/);
+
+        if (domainMatch && availableMatch) {
+          const domain = domainMatch[1];
+          const isAvailable = availableMatch[1] === "true";
+
+          if (isAvailable) {
+            available.push(domain);
+          } else {
+            unavailable.push(domain);
+          }
+        }
+      }
+    }
+
+    return {
+      available,
+      unavailable,
+      error: null,
+    };
+  } catch (error) {
+    console.error("Domain availability check failed:", error);
+    return {
+      available: [],
+      unavailable: [],
+      error: "Domain check failed",
+    };
+  }
+}
+
 // EXA API call with retry logic
 async function callExaAPI(query: string) {
   return pRetry(
@@ -459,6 +555,10 @@ export async function POST(request: NextRequest) {
     // Step 3: Validate and structure the response
     const validatedIdea = ideaResponseSchema.parse(ideaResponse);
 
+    // Step 3.5: Check domain availability
+    console.log("Checking domain availability...");
+    const domainCheck = await checkDomainAvailability(validatedIdea.title);
+
     // Step 4: Save to database
     const { data: savedIdea, error: saveError } = await supabase
       .from("generated_ideas")
@@ -470,9 +570,11 @@ export async function POST(request: NextRequest) {
         target_audience: validatedIdea.target_audience,
         revenue_streams: validatedIdea.revenue_streams,
         validation_data: validatedIdea.validation_data,
+        domain_availability: domainCheck,
         preferences: sanitizedPreferences || null,
         constraints: sanitizedConstraints || null,
         industry: sanitizedIndustry || null,
+        domain_availability: domainCheck,
       })
       .select()
       .single();

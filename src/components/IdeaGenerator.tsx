@@ -122,6 +122,11 @@ interface GeneratedIdea {
     competitor_analysis: string;
     demand_indicators: string[];
   };
+  domain_availability?: {
+    available: string[];
+    unavailable: string[];
+    error: string | null;
+  };
 }
 
 interface SavedIdea {
@@ -438,16 +443,72 @@ export default function IdeaGenerator({
               </div>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-3">
-                <Button
-                  variant="outline"
-                  className="flex-1"
-                  onClick={() => setShowDetailsModal(true)}
-                >
-                  View Details
-                </Button>
-                <div className="flex-1 flex items-center justify-center text-sm text-green-600 font-medium">
-                  ✓ Saved to library - Redirecting...
+              <div className="space-y-4">
+                {/* Domain Availability Preview */}
+                {generatedIdea.domain_availability && (
+                  <div className="space-y-2">
+                    {generatedIdea.domain_availability.error ? (
+                      <p className="text-sm text-amber-600">
+                        ⚠️ Domain check unavailable
+                      </p>
+                    ) : (
+                      <div className="space-y-2">
+                        {generatedIdea.domain_availability.available.length >
+                          0 && (
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm text-green-600 font-medium">
+                              ✅ Available domains:
+                            </span>
+                            <div className="flex gap-1">
+                              {generatedIdea.domain_availability.available
+                                .slice(0, 2)
+                                .map((domain, index) => (
+                                  <Badge
+                                    key={index}
+                                    variant="outline"
+                                    className="bg-green-50 text-green-700 border-green-200 text-xs"
+                                  >
+                                    {domain}
+                                  </Badge>
+                                ))}
+                              {generatedIdea.domain_availability.available
+                                .length > 2 && (
+                                <span className="text-xs text-gray-500">
+                                  +
+                                  {generatedIdea.domain_availability.available
+                                    .length - 2}{" "}
+                                  more
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {generatedIdea.domain_availability.available.length ===
+                          0 &&
+                          generatedIdea.domain_availability.unavailable.length >
+                            0 && (
+                            <p className="text-sm text-red-600">
+                              ❌ Common domains (.com, .net, .org) are
+                              unavailable
+                            </p>
+                          )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                <div className="flex gap-3">
+                  <Button
+                    variant="outline"
+                    className="flex-1"
+                    onClick={() => setShowDetailsModal(true)}
+                  >
+                    View Details
+                  </Button>
+                  <div className="flex-1 flex items-center justify-center text-sm text-green-600 font-medium">
+                    ✓ Saved to library - Redirecting...
+                  </div>
                 </div>
               </div>
             </CardContent>
@@ -572,6 +633,67 @@ export default function IdeaGenerator({
                     )}
                   </div>
                 </div>
+
+                {/* Domain Availability Section */}
+                {generatedIdea.domain_availability && (
+                  <div className="space-y-4">
+                    <h3 className="text-xl font-medium text-black">
+                      Domain Availability
+                    </h3>
+
+                    {generatedIdea.domain_availability.error ? (
+                      <p className="body-text text-amber-600">
+                        ⚠️ {generatedIdea.domain_availability.error}
+                      </p>
+                    ) : (
+                      <div className="space-y-3">
+                        {generatedIdea.domain_availability.available.length >
+                          0 && (
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-green-600">
+                              ✅ Available Domains
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {generatedIdea.domain_availability.available.map(
+                                (domain, index) => (
+                                  <Badge
+                                    key={index}
+                                    variant="outline"
+                                    className="bg-green-50 text-green-700 border-green-200"
+                                  >
+                                    {domain}
+                                  </Badge>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        )}
+
+                        {generatedIdea.domain_availability.unavailable.length >
+                          0 && (
+                          <div className="space-y-2">
+                            <h4 className="font-medium text-red-600">
+                              ❌ Unavailable Domains
+                            </h4>
+                            <div className="flex flex-wrap gap-2">
+                              {generatedIdea.domain_availability.unavailable.map(
+                                (domain, index) => (
+                                  <Badge
+                                    key={index}
+                                    variant="outline"
+                                    className="bg-red-50 text-red-700 border-red-200"
+                                  >
+                                    {domain}
+                                  </Badge>
+                                ),
+                              )}
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Action Buttons */}
                 <div className="flex gap-3 pt-4 border-t">
