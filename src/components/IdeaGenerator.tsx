@@ -237,6 +237,9 @@ export default function IdeaGenerator({
               "Our AI service is currently at capacity. Upgrade to Premium for priority access and unlimited idea generation. Click 'Upgrade to Premium' in the navigation bar to get started!",
             variant: "destructive",
           });
+          setIsGenerating(false);
+          setShowFullScreenLoading(false);
+          onGeneratingChange?.(false);
           return;
         }
 
@@ -247,6 +250,9 @@ export default function IdeaGenerator({
               "You have reached your limit. Premium users can generate up to 12 ideas per hour and 24 ideas per day. Your limit will reset soon!",
             variant: "destructive",
           });
+          setIsGenerating(false);
+          setShowFullScreenLoading(false);
+          onGeneratingChange?.(false);
           return;
         }
         throw new Error(data.message || "Failed to generate idea");
@@ -254,6 +260,11 @@ export default function IdeaGenerator({
 
       // Add a small delay to ensure the idea is fully saved
       await new Promise((resolve) => setTimeout(resolve, 1000));
+
+      // Redirect immediately without updating component state to prevent flash
+      const timestamp = Date.now();
+      router.replace(`/library?refresh=${timestamp}`);
+      router.refresh();
     } catch (error) {
       console.error("Error generating idea:", error);
       toast({
@@ -267,17 +278,10 @@ export default function IdeaGenerator({
       return;
     }
 
-    // Redirect to library with a cache-busting parameter to force refresh
+    // Clean up loading states after redirect is initiated
     setIsGenerating(false);
     setShowFullScreenLoading(false);
     onGeneratingChange?.(false);
-
-    // Use replace to avoid back button issues and add timestamp to force refresh
-    const timestamp = Date.now();
-    router.replace(`/library?refresh=${timestamp}`);
-
-    // Also trigger a hard refresh of the router cache
-    router.refresh();
   };
 
   const handleLike = () => {
