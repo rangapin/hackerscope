@@ -635,17 +635,23 @@ export async function POST(request: NextRequest) {
     console.log("Checking domain availability...");
     const domainCheck = await checkDomainAvailability(validatedIdea.title);
 
+    // Add domain availability to the validated idea
+    const enhancedIdea = {
+      ...validatedIdea,
+      domain_availability: domainCheck,
+    };
+
     // Step 4: Save to database
     const { data: savedIdea, error: saveError } = await supabase
       .from("generated_ideas")
       .insert({
         email,
-        title: validatedIdea.title,
-        description: validatedIdea.solution,
-        market_size: validatedIdea.market_size,
-        target_audience: validatedIdea.target_audience,
-        revenue_streams: validatedIdea.revenue_streams,
-        validation_data: validatedIdea.validation_data,
+        title: enhancedIdea.title,
+        description: enhancedIdea.solution,
+        market_size: enhancedIdea.market_size,
+        target_audience: enhancedIdea.target_audience,
+        revenue_streams: enhancedIdea.revenue_streams,
+        validation_data: enhancedIdea.validation_data,
         preferences: sanitizedPreferences || null,
         constraints: sanitizedConstraints || null,
         industry: sanitizedIndustry || null,
@@ -667,8 +673,8 @@ export async function POST(request: NextRequest) {
       .insert({
         user_email: email,
         idea_id: savedIdea.id,
-        title: validatedIdea.title,
-        description: validatedIdea.solution,
+        title: enhancedIdea.title,
+        description: enhancedIdea.solution,
         is_liked: false,
       });
 
@@ -682,16 +688,17 @@ export async function POST(request: NextRequest) {
       success: true,
       idea: {
         id: savedIdea.id,
-        title: validatedIdea.title,
-        problem: validatedIdea.problem,
-        solution: validatedIdea.solution,
-        market_size: validatedIdea.market_size,
-        target_audience: validatedIdea.target_audience,
-        revenue_streams: validatedIdea.revenue_streams,
-        validation_data: validatedIdea.validation_data,
-        competitors: validatedIdea.competitors,
-        pricing_suggestions: validatedIdea.pricing_suggestions,
-        tech_stack: validatedIdea.tech_stack,
+        title: enhancedIdea.title,
+        problem: enhancedIdea.problem,
+        solution: enhancedIdea.solution,
+        market_size: enhancedIdea.market_size,
+        target_audience: enhancedIdea.target_audience,
+        revenue_streams: enhancedIdea.revenue_streams,
+        validation_data: enhancedIdea.validation_data,
+        competitors: enhancedIdea.competitors,
+        pricing_suggestions: enhancedIdea.pricing_suggestions,
+        tech_stack: enhancedIdea.tech_stack,
+        domain_availability: enhancedIdea.domain_availability,
       },
       remainingIdeas: userLimits.hasActiveSubscription
         ? Infinity
