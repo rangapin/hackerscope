@@ -248,6 +248,8 @@ Target Market Size: ${targetMarketSize?.substring(0, 50) || "Any"}
 Time to Market: ${timeToMarket?.substring(0, 50) || "Any"}
 Team Size: ${teamSize?.substring(0, 50) || "Any"}
 
+IMPORTANT: You MUST include ALL sections in your response, including competitors, pricing_suggestions, and tech_stack. These are required for all users.
+
 Return JSON format with enhanced analysis:
 {
   "title": "Startup Name",
@@ -266,6 +268,11 @@ Return JSON format with enhanced analysis:
       "name": "Competitor Name",
       "url": "https://competitor.com",
       "description": "Brief description of what they do and how they compete"
+    },
+    {
+      "name": "Another Competitor",
+      "url": "https://competitor2.com", 
+      "description": "Another competitor description"
     }
   ],
   "pricing_suggestions": [
@@ -273,16 +280,33 @@ Return JSON format with enhanced analysis:
       "model": "Subscription/Freemium/One-time/Usage-based",
       "price_range": "$X - $Y per month/user",
       "justification": "Why this pricing makes sense based on competitor analysis and value proposition"
+    },
+    {
+      "model": "Alternative pricing model",
+      "price_range": "$X - $Y",
+      "justification": "Alternative pricing justification"
     }
   ],
   "tech_stack": [
     {
-      "category": "Frontend/Backend/Database/AI Tools/etc",
-      "tools": ["Tool 1", "Tool 2", "Tool 3"],
-      "reasoning": "Why these tools are recommended for this specific project"
+      "category": "Frontend",
+      "tools": ["React", "Next.js", "Tailwind CSS"],
+      "reasoning": "Why these frontend tools are recommended for this specific project"
+    },
+    {
+      "category": "Backend",
+      "tools": ["Node.js", "Express", "PostgreSQL"],
+      "reasoning": "Why these backend tools are recommended"
+    },
+    {
+      "category": "AI/ML",
+      "tools": ["OpenAI API", "Anthropic Claude", "Hugging Face"],
+      "reasoning": "AI tools needed for this project"
     }
   ]
-}`;
+}
+
+CRITICAL: Always include at least 2 competitors, 2 pricing suggestions, and 3 tech stack categories (Frontend, Backend, and one specialized category like AI/ML, Database, or DevOps).`;
 
       const message = await anthropic.messages.create({
         model: "claude-3-5-sonnet-20241022",
@@ -638,6 +662,49 @@ export async function POST(request: NextRequest) {
     // Add domain availability to the validated idea
     const enhancedIdea = {
       ...validatedIdea,
+      // Ensure enhanced features are always present with fallbacks
+      competitors: validatedIdea.competitors && validatedIdea.competitors.length > 0 
+        ? validatedIdea.competitors 
+        : [
+            {
+              name: "Direct Competitor Analysis Pending",
+              url: "https://example.com",
+              description: "Detailed competitor analysis will be provided in the next update. Research similar companies in your industry for competitive insights."
+            }
+          ],
+      pricing_suggestions: validatedIdea.pricing_suggestions && validatedIdea.pricing_suggestions.length > 0
+        ? validatedIdea.pricing_suggestions
+        : [
+            {
+              model: "Freemium",
+              price_range: "Free tier + $9-29/month premium",
+              justification: "Start with a free tier to attract users, then convert to paid plans with advanced features."
+            },
+            {
+              model: "Subscription",
+              price_range: "$19-49/month per user",
+              justification: "Monthly recurring revenue model provides predictable income and scales with user growth."
+            }
+          ],
+      tech_stack: validatedIdea.tech_stack && validatedIdea.tech_stack.length > 0
+        ? validatedIdea.tech_stack
+        : [
+            {
+              category: "Frontend",
+              tools: ["React", "Next.js", "Tailwind CSS"],
+              reasoning: "Modern, scalable frontend stack with excellent developer experience and performance."
+            },
+            {
+              category: "Backend",
+              tools: ["Node.js", "Express", "PostgreSQL"],
+              reasoning: "Reliable backend stack that scales well and has strong community support."
+            },
+            {
+              category: "Infrastructure",
+              tools: ["Vercel", "Supabase", "Stripe"],
+              reasoning: "Cloud-first infrastructure for rapid deployment, database management, and payment processing."
+            }
+          ],
       domain_availability: domainCheck,
     };
 
