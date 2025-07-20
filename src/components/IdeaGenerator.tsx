@@ -260,6 +260,7 @@ export default function IdeaGenerator({
           email: userEmail,
           industry: industry || undefined,
           preferences: preferences || undefined,
+          constraints: businessModel || undefined,
           budget: budget || undefined,
           difficultyLevel: difficultyLevel || undefined,
           targetMarketSize: targetMarketSize || undefined,

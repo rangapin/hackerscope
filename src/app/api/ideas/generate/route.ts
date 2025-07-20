@@ -683,7 +683,7 @@ export async function POST(request: NextRequest) {
       // Don't fail the request if library save fails, just log it
     }
 
-    // Return structured response
+    // Return structured response with all enhanced features for all users
     return NextResponse.json({
       success: true,
       idea: {
@@ -695,9 +695,9 @@ export async function POST(request: NextRequest) {
         target_audience: enhancedIdea.target_audience,
         revenue_streams: enhancedIdea.revenue_streams,
         validation_data: enhancedIdea.validation_data,
-        competitors: enhancedIdea.competitors,
-        pricing_suggestions: enhancedIdea.pricing_suggestions,
-        tech_stack: enhancedIdea.tech_stack,
+        competitors: enhancedIdea.competitors || [],
+        pricing_suggestions: enhancedIdea.pricing_suggestions || [],
+        tech_stack: enhancedIdea.tech_stack || [],
         domain_availability: enhancedIdea.domain_availability,
       },
       remainingIdeas: userLimits.hasActiveSubscription
