@@ -122,6 +122,21 @@ interface GeneratedIdea {
     competitor_analysis: string;
     demand_indicators: string[];
   };
+  competitors?: {
+    name: string;
+    url: string;
+    description: string;
+  }[];
+  pricing_suggestions?: {
+    model: string;
+    price_range: string;
+    justification: string;
+  }[];
+  tech_stack?: {
+    category: string;
+    tools: string[];
+    reasoning: string;
+  }[];
   domain_availability?: {
     available: string[];
     unavailable: string[];
@@ -153,6 +168,9 @@ export default function IdeaGenerator({
   const [preferences, setPreferences] = useState("");
   const [budget, setBudget] = useState("");
   const [difficultyLevel, setDifficultyLevel] = useState("");
+  const [targetMarketSize, setTargetMarketSize] = useState("");
+  const [timeToMarket, setTimeToMarket] = useState("");
+  const [teamSize, setTeamSize] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedIdea, setGeneratedIdea] = useState<GeneratedIdea | null>(
     null,
@@ -205,6 +223,28 @@ export default function IdeaGenerator({
     "Expert (Very challenging)",
   ];
 
+  const targetMarketSizes = [
+    "Niche (Under 100K users)",
+    "Small (100K - 1M users)",
+    "Medium (1M - 10M users)",
+    "Large (10M - 100M users)",
+    "Mass Market (100M+ users)",
+  ];
+
+  const timeToMarketOptions = [
+    "Quick Launch (1-3 months)",
+    "Standard (3-6 months)",
+    "Extended (6-12 months)",
+    "Long-term (12+ months)",
+  ];
+
+  const teamSizeOptions = [
+    "Solo Founder",
+    "Small Team (2-3 people)",
+    "Medium Team (4-8 people)",
+    "Large Team (9+ people)",
+  ];
+
   const handleGenerate = async () => {
     setIsGenerating(true);
     setShowFullScreenLoading(true);
@@ -222,6 +262,9 @@ export default function IdeaGenerator({
           preferences: preferences || undefined,
           budget: budget || undefined,
           difficultyLevel: difficultyLevel || undefined,
+          targetMarketSize: targetMarketSize || undefined,
+          timeToMarket: timeToMarket || undefined,
+          teamSize: teamSize || undefined,
         }),
       });
 
@@ -386,6 +429,77 @@ export default function IdeaGenerator({
                         className="hover:bg-gray-50"
                       >
                         {level}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <div className="space-y-3">
+                <label className="text-sm font-normal text-gray-600">
+                  Target Market Size (Optional)
+                </label>
+                <Select
+                  value={targetMarketSize}
+                  onValueChange={setTargetMarketSize}
+                >
+                  <SelectTrigger className="bg-white border-gray-300 hover:border-gray-400 focus:border-black focus:ring-1 focus:ring-black">
+                    <SelectValue placeholder="Select market size" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-gray-200">
+                    {targetMarketSizes.map((size) => (
+                      <SelectItem
+                        key={size}
+                        value={size}
+                        className="hover:bg-gray-50"
+                      >
+                        {size}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-normal text-gray-600">
+                  Time to Market (Optional)
+                </label>
+                <Select value={timeToMarket} onValueChange={setTimeToMarket}>
+                  <SelectTrigger className="bg-white border-gray-300 hover:border-gray-400 focus:border-black focus:ring-1 focus:ring-black">
+                    <SelectValue placeholder="Select timeline" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-gray-200">
+                    {timeToMarketOptions.map((time) => (
+                      <SelectItem
+                        key={time}
+                        value={time}
+                        className="hover:bg-gray-50"
+                      >
+                        {time}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-3">
+                <label className="text-sm font-normal text-gray-600">
+                  Team Size (Optional)
+                </label>
+                <Select value={teamSize} onValueChange={setTeamSize}>
+                  <SelectTrigger className="bg-white border-gray-300 hover:border-gray-400 focus:border-black focus:ring-1 focus:ring-black">
+                    <SelectValue placeholder="Select team size" />
+                  </SelectTrigger>
+                  <SelectContent className="bg-white border-gray-200">
+                    {teamSizeOptions.map((size) => (
+                      <SelectItem
+                        key={size}
+                        value={size}
+                        className="hover:bg-gray-50"
+                      >
+                        {size}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -628,6 +742,112 @@ export default function IdeaGenerator({
                     )}
                   </div>
                 </div>
+
+                {/* Competitors Section */}
+                {generatedIdea.competitors &&
+                  generatedIdea.competitors.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-xl font-medium text-black">
+                        Direct Competitors
+                      </h3>
+                      <div className="space-y-4">
+                        {generatedIdea.competitors.map((competitor, index) => (
+                          <div
+                            key={index}
+                            className="border border-gray-200 rounded-lg p-4"
+                          >
+                            <div className="flex items-start justify-between mb-2">
+                              <h4 className="font-medium text-black">
+                                {competitor.name}
+                              </h4>
+                              <a
+                                href={competitor.url}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-blue-600 hover:text-blue-800 text-sm"
+                              >
+                                Visit Site →
+                              </a>
+                            </div>
+                            <p className="body-text text-gray-600 text-sm leading-relaxed">
+                              {competitor.description}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Pricing Suggestions Section */}
+                {generatedIdea.pricing_suggestions &&
+                  generatedIdea.pricing_suggestions.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-xl font-medium text-black">
+                        Pricing Suggestions
+                      </h3>
+                      <div className="space-y-4">
+                        {generatedIdea.pricing_suggestions.map(
+                          (pricing, index) => (
+                            <div
+                              key={index}
+                              className="border border-gray-200 rounded-lg p-4"
+                            >
+                              <div className="flex items-center gap-3 mb-2">
+                                <Badge
+                                  variant="outline"
+                                  className="bg-blue-50 text-blue-700 border-blue-200"
+                                >
+                                  {pricing.model}
+                                </Badge>
+                                <span className="font-medium text-black">
+                                  {pricing.price_range}
+                                </span>
+                              </div>
+                              <p className="body-text text-gray-600 text-sm leading-relaxed">
+                                {pricing.justification}
+                              </p>
+                            </div>
+                          ),
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                {/* Tech Stack Section */}
+                {generatedIdea.tech_stack &&
+                  generatedIdea.tech_stack.length > 0 && (
+                    <div className="space-y-4">
+                      <h3 className="text-xl font-medium text-black">
+                        Suggested Tech Stack
+                      </h3>
+                      <div className="space-y-4">
+                        {generatedIdea.tech_stack.map((stack, index) => (
+                          <div
+                            key={index}
+                            className="border border-gray-200 rounded-lg p-4"
+                          >
+                            <h4 className="font-medium text-black mb-2">
+                              {stack.category}
+                            </h4>
+                            <div className="flex flex-wrap gap-2 mb-3">
+                              {stack.tools.map((tool, toolIndex) => (
+                                <Badge
+                                  key={toolIndex}
+                                  variant="outline"
+                                  className="bg-purple-50 text-purple-700 border-purple-200"
+                                >
+                                  {tool}
+                                </Badge>
+                              ))}
+                            </div>
+                            <p className="body-text text-gray-600 text-sm leading-relaxed">
+                              {stack.reasoning}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
 
                 {/* Domain Availability Section */}
                 {generatedIdea.domain_availability && (

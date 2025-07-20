@@ -20,6 +20,9 @@ const generateIdeaSchema = z.object({
   email: z.string().email().min(1).max(254),
   budget: z.string().max(100).optional(),
   difficultyLevel: z.string().max(100).optional(),
+  targetMarketSize: z.string().max(100).optional(),
+  timeToMarket: z.string().max(100).optional(),
+  teamSize: z.string().max(100).optional(),
 });
 
 // Response structure schema
@@ -37,6 +40,33 @@ const ideaResponseSchema = z.object({
     competitor_analysis: z.string(),
     demand_indicators: z.array(z.string()),
   }),
+  competitors: z
+    .array(
+      z.object({
+        name: z.string(),
+        url: z.string(),
+        description: z.string(),
+      }),
+    )
+    .optional(),
+  pricing_suggestions: z
+    .array(
+      z.object({
+        model: z.string(),
+        price_range: z.string(),
+        justification: z.string(),
+      }),
+    )
+    .optional(),
+  tech_stack: z
+    .array(
+      z.object({
+        category: z.string(),
+        tools: z.array(z.string()),
+        reasoning: z.string(),
+      }),
+    )
+    .optional(),
 });
 
 // Initialize Anthropic client
@@ -191,6 +221,11 @@ async function callClaudeAPI(
   preferences?: string,
   constraints?: string,
   industry?: string,
+  budget?: string,
+  difficultyLevel?: string,
+  targetMarketSize?: string,
+  timeToMarket?: string,
+  teamSize?: string,
 ) {
   return pRetry(
     async () => {
@@ -207,8 +242,13 @@ ${JSON.stringify(marketInsights)}
 Preferences: ${preferences?.substring(0, 100) || "None"}
 Constraints: ${constraints?.substring(0, 100) || "None"}
 Industry: ${industry?.substring(0, 50) || "Any"}
+Budget: ${budget?.substring(0, 50) || "Any"}
+Difficulty Level: ${difficultyLevel?.substring(0, 50) || "Any"}
+Target Market Size: ${targetMarketSize?.substring(0, 50) || "Any"}
+Time to Market: ${timeToMarket?.substring(0, 50) || "Any"}
+Team Size: ${teamSize?.substring(0, 50) || "Any"}
 
-Return JSON format:
+Return JSON format with enhanced analysis:
 {
   "title": "Startup Name",
   "problem": "Problem statement",
@@ -220,7 +260,28 @@ Return JSON format:
     "market_trends": ["Trend 1", "Trend 2", "Trend 3"],
     "competitor_analysis": "Competitor analysis",
     "demand_indicators": ["Indicator 1", "Indicator 2", "Indicator 3"]
-  }
+  },
+  "competitors": [
+    {
+      "name": "Competitor Name",
+      "url": "https://competitor.com",
+      "description": "Brief description of what they do and how they compete"
+    }
+  ],
+  "pricing_suggestions": [
+    {
+      "model": "Subscription/Freemium/One-time/Usage-based",
+      "price_range": "$X - $Y per month/user",
+      "justification": "Why this pricing makes sense based on competitor analysis and value proposition"
+    }
+  ],
+  "tech_stack": [
+    {
+      "category": "Frontend/Backend/Database/AI Tools/etc",
+      "tools": ["Tool 1", "Tool 2", "Tool 3"],
+      "reasoning": "Why these tools are recommended for this specific project"
+    }
+  ]
 }`;
 
       const message = await anthropic.messages.create({
@@ -476,6 +537,9 @@ export async function POST(request: NextRequest) {
       email,
       budget,
       difficultyLevel,
+      targetMarketSize,
+      timeToMarket,
+      teamSize,
     } = validatedData;
 
     // Verify the email matches the authenticated user
@@ -509,6 +573,13 @@ export async function POST(request: NextRequest) {
     const sanitizedDifficultyLevel = difficultyLevel
       ? sanitizeHtml(difficultyLevel)
       : undefined;
+    const sanitizedTargetMarketSize = targetMarketSize
+      ? sanitizeHtml(targetMarketSize)
+      : undefined;
+    const sanitizedTimeToMarket = timeToMarket
+      ? sanitizeHtml(timeToMarket)
+      : undefined;
+    const sanitizedTeamSize = teamSize ? sanitizeHtml(teamSize) : undefined;
 
     // Check user limits
     const userLimits = await checkUserLimits(email, supabase);
@@ -550,6 +621,11 @@ export async function POST(request: NextRequest) {
       sanitizedPreferences,
       sanitizedConstraints,
       sanitizedIndustry,
+      sanitizedBudget,
+      sanitizedDifficultyLevel,
+      sanitizedTargetMarketSize,
+      sanitizedTimeToMarket,
+      sanitizedTeamSize,
     );
 
     // Step 3: Validate and structure the response
@@ -613,6 +689,9 @@ export async function POST(request: NextRequest) {
         target_audience: validatedIdea.target_audience,
         revenue_streams: validatedIdea.revenue_streams,
         validation_data: validatedIdea.validation_data,
+        competitors: validatedIdea.competitors,
+        pricing_suggestions: validatedIdea.pricing_suggestions,
+        tech_stack: validatedIdea.tech_stack,
       },
       remainingIdeas: userLimits.hasActiveSubscription
         ? Infinity
