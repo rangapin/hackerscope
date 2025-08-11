@@ -97,3 +97,18 @@ const nextConfig = {
 };
 
 module.exports = nextConfig;
+
+module.exports = {
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'X-Content-Type-Options', value: 'nosniff' },
+          { key: 'Strict-Transport-Security', value: 'max-age=31536000' }
+        ],
+      },
+    ]
+  },
+}
