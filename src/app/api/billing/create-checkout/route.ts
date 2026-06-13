@@ -1,6 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "../../../../../supabase/server";
 import { z } from "zod";
+import Stripe from "stripe";
+
+const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
+  apiVersion: "2025-02-24.acacia",
+});
 
 // Input validation schema
 const createCheckoutSchema = z.object({
@@ -23,68 +28,38 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { price_id } = createCheckoutSchema.parse(body);
 
-    // Debug logging
-    console.log("Received price_id:", price_id);
-    console.log("Environment variable raw:", process.env.ALLOWED_STRIPE_PRICE_IDS);
-    
-    // Additional validation - ensure price_id is from our allowed list
-    const allowedPriceIds = process.env.ALLOWED_STRIPE_PRICE_IDS?.split(",") || [];
-    
-    console.log("Allowed price IDs array:", allowedPriceIds);
-    console.log("Array length:", allowedPriceIds.length);
-    console.log("Does array include price_id:", allowedPriceIds.includes(price_id));
-    
+    // Ensure the price_id is from our allowed list
+    const allowedPriceIds =
+      process.env.ALLOWED_STRIPE_PRICE_IDS?.split(",")
+        .map((id) => id.trim())
+        .filter(Boolean) || [];
+
     if (allowedPriceIds.length > 0 && !allowedPriceIds.includes(price_id)) {
-      console.log("VALIDATION FAILED - Invalid price ID");
       return NextResponse.json({ error: "Invalid price ID" }, { status: 400 });
     }
 
-    console.log("VALIDATION PASSED - Proceeding to Supabase function");
-
-    // Call the Supabase function to create checkout session
-    const { data, error } = await supabase.functions.invoke(
-      "supabase-functions-create-checkout",
-      {
-        body: {
-          priceId: price_id,
-          customerEmail: user.email || "",
-            successUrl: `${request.nextUrl.origin}/dashboard`,
-            cancelUrl: `${request.nextUrl.origin}/dashboard`,
-        },
+    // Create the Stripe Checkout session directly
+    const session = await stripe.checkout.sessions.create({
+      mode: "subscription",
+      line_items: [{ price: price_id, quantity: 1 }],
+      customer_email: user.email || undefined,
+      client_reference_id: user.id,
+      metadata: { user_id: user.id, email: user.email || "" },
+      subscription_data: {
+        metadata: { user_id: user.id, email: user.email || "" },
       },
-    );
+      success_url: `${request.nextUrl.origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
+      cancel_url: `${request.nextUrl.origin}/dashboard?canceled=true`,
+    });
 
-    console.log("Supabase function response:", { data, error });
-
-    if (error) {
-      console.error("Error creating checkout session:", error);
-      return NextResponse.json(
-        { error: "Failed to create checkout session" },
-        { status: 500 },
-      );
-    }
-
-    // Parse the data if it's a string
-    let parsedData = data;
-    if (typeof data === 'string') {
-      console.log("Data is string, parsing...");
-      parsedData = JSON.parse(data);
-    }
-
-    // Extract just the URL from the response
-    const checkoutUrl = parsedData?.url;
-    
-    if (!checkoutUrl) {
-      console.error("No URL in parsed response:", parsedData);
+    if (!session.url) {
       return NextResponse.json(
         { error: "No checkout URL received" },
         { status: 500 },
       );
     }
 
-    console.log("Returning URL:", checkoutUrl);
-    return NextResponse.json({ url: checkoutUrl });
-
+    return NextResponse.json({ url: session.url });
   } catch (error) {
     console.error("Error in create-checkout route:", error);
     return NextResponse.json(
