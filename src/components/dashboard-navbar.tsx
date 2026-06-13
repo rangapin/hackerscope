@@ -69,24 +69,14 @@ export default function DashboardNavbar({
       setUser(user);
 
       if (user) {
-        // TEMPORARILY DISABLED: Check subscription status
-        console.log(
-          "🚫 [SUBSCRIPTION DISABLED] Skipping subscription status check in dashboard navbar",
-        );
-        setIsSubscribed(false); // Always set to false for now
-
-        /* COMMENTED OUT - ORIGINAL SUBSCRIPTION CHECK
         const { data: subscription, error: subError } = await supabase
           .from("subscriptions")
           .select("*")
           .eq("user_id", user.id)
           .eq("status", "active")
-          .single();
+          .maybeSingle();
 
-        if (!subError && subscription) {
-          setIsSubscribed(true);
-        }
-        */
+        setIsSubscribed(!subError && !!subscription);
       }
     } catch (err) {
       setError("Failed to load user data");
