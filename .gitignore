@@ -5,5 +5,7 @@ node_modules/
 dist/
 *.log
 .playwright-mcp/
+.vercel/
 **/tempobook/dynamic/
 **/tempobook/storyboards/
+.vercel
