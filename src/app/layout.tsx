@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import Script from "next/script";
 import "./globals.css";
 import ClientComponents from "@/components/client-components";
 
@@ -59,7 +58,6 @@ export default function RootLayout({
           crossOrigin="anonymous"
         />
       </head>
-      <Script src="https://api.tempo.new/proxy-asset?url=https://storage.googleapis.com/tempo-public-assets/error-handling.js" />
       <body className={inter.className}>
         <ClientComponents>{children}</ClientComponents>
       </body>

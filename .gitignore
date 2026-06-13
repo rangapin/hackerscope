@@ -4,5 +4,6 @@ node_modules/
 .next/
 dist/
 *.log
+.playwright-mcp/
 **/tempobook/dynamic/
 **/tempobook/storyboards/
