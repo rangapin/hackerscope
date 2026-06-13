@@ -1,8 +1,8 @@
 node_modules/
+.env
 .env.local
 .next/
 dist/
 *.log
 **/tempobook/dynamic/
 **/tempobook/storyboards/
-.env
