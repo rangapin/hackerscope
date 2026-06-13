@@ -71,14 +71,6 @@ export const createClient = async () => {
       detectSessionInUrl: true,
       flowType: "pkce",
     },
-    global: {
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
-    },
   });
 
   console.log("✅ [SERVER DEBUG] Fresh server client created successfully:", {

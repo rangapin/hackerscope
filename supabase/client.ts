@@ -43,7 +43,6 @@ export const createClient = () => {
       autoRefreshToken: true,
       detectSessionInUrl: true,
       flowType: "pkce",
-      storage: typeof window !== "undefined" ? window.localStorage : undefined,
     },
     realtime: {
       params: {
@@ -52,14 +51,6 @@ export const createClient = () => {
     },
     db: {
       schema: "public",
-    },
-    global: {
-      headers: {
-        apikey: supabaseAnonKey,
-        Authorization: `Bearer ${supabaseAnonKey}`,
-        "Content-Type": "application/json",
-        Prefer: "return=minimal",
-      },
     },
   });
 
