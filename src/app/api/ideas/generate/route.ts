@@ -165,7 +165,7 @@ Return JSON format:
 }`;
 
       const message = await anthropic.messages.create({
-        model: "claude-haiku-4-5-20251001", // Haiku 4.5
+        model: "claude-opus-4-8", // Opus 4.8
         max_tokens: 1200, // Reduced from 1500
         messages: [
           {
