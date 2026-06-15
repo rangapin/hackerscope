@@ -126,11 +126,37 @@ async function callExaAPI(query: string) {
 }
 
 // Claude API call with optimized timeout and retry logic
+// Creative lenses + revenue-model hints used to inject per-request entropy.
+// Opus 4.8 removed the `temperature` parameter, so variety has to come from the
+// prompt — otherwise identical inputs collapse to the same idea every time.
+const CREATIVE_LENSES = [
+  "an underserved niche community most founders overlook",
+  "a boring-but-profitable B2B back-office workflow",
+  "an everyday consumer pain point that's been tolerated for years",
+  "an emerging behavior among a specific demographic",
+  "a gap left open by a large incumbent's weakness",
+  "a new capability unlocked by recent AI advances",
+  "a local or offline problem that hasn't been digitized yet",
+  "a regulatory or compliance shift creating new demand",
+  "a workflow that's currently stitched together with spreadsheets",
+  "an audience that's growing fast but poorly served by existing tools",
+];
+const REVENUE_MODELS = [
+  "subscription SaaS",
+  "marketplace with transaction fees",
+  "usage-based API",
+  "community or membership",
+  "one-time purchase / lifetime deal",
+  "freemium with a paid pro tier",
+];
+
 async function callClaudeAPI(
   marketData: any,
   preferences?: string,
   constraints?: string,
   industry?: string,
+  budget?: string,
+  difficultyLevel?: string,
 ) {
   return pRetry(
     async () => {
@@ -141,6 +167,12 @@ async function callClaudeAPI(
           summary: result.summary?.substring(0, 150),
         })) || [];
 
+      // Per-request entropy so identical inputs don't produce the same idea.
+      const seed = Math.floor(Math.random() * 1_000_000_000);
+      const lens = CREATIVE_LENSES[seed % CREATIVE_LENSES.length];
+      const revenueModel =
+        REVENUE_MODELS[Math.floor(seed / 1000) % REVENUE_MODELS.length];
+
       // Simplified prompt to reduce processing time
       const prompt = `Generate a startup idea based on these market insights:
 ${JSON.stringify(marketInsights)}
@@ -148,6 +180,10 @@ ${JSON.stringify(marketInsights)}
 Preferences: ${preferences?.substring(0, 80) || "None"}
 Constraints: ${constraints?.substring(0, 80) || "None"}
 Industry: ${industry?.substring(0, 40) || "Any"}
+Budget: ${budget?.substring(0, 40) || "Any"}
+Difficulty level: ${difficultyLevel?.substring(0, 40) || "Any"}
+
+Creative direction (use this to steer toward a fresh idea — do NOT mention it in the output): focus on ${lens}; lean toward a ${revenueModel} revenue model. Avoid generic, overused startup concepts and clichéd one-word names. Variation seed: ${seed}.
 
 Return JSON format:
 {
@@ -553,7 +589,7 @@ export async function POST(request: NextRequest) {
 
     // Step 1 & 2: Run EXA API and Claude API in parallel to reduce total execution time
     const marketQuery =
-      `startup opportunities ${sanitizedIndustry || "technology"} ${sanitizedPreferences || ""} market trends business ideas 2024`.trim();
+      `startup opportunities ${sanitizedIndustry || "technology"} ${sanitizedPreferences || ""} market trends business ideas ${new Date().getFullYear()}`.trim();
 
     console.log("Starting parallel API calls...");
 
@@ -595,6 +631,8 @@ export async function POST(request: NextRequest) {
         sanitizedPreferences,
         sanitizedConstraints,
         sanitizedIndustry,
+        sanitizedBudget,
+        sanitizedDifficultyLevel,
       );
     } catch (claudeError) {
       console.error("Claude API error:", claudeError);
